@@ -227,6 +227,7 @@ EVENTO_BASE = {
     "data_fim": "2025-07-12T18:00:00",
     "link_galeria": None,
     "formulario_link": None,
+    "tipo_evento": "Conferência",
 }
 
 EVENTO_RESPOSTA = {
