@@ -15,6 +15,12 @@ class ServicoLider:
     def listar_lideres(self):
         return self.repositorio.buscar_todos()
 
+    def listar_lideres_atuais(self):
+        return self.repositorio.buscar_lideres_atuais()
+
+    def listar_diretores_anteriores(self):
+        return self.repositorio.buscar_diretores_anteriores()
+
     def buscar_lider(self, lider_id: int):
         lider = self.repositorio.buscar_por_id(lider_id)
 

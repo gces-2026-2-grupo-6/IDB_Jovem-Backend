@@ -20,7 +20,7 @@ def get_servico(db: Session = Depends(obter_banco)):
 def criar_lider(
     solicitacao: SolicitacaoLider,
     servico: ServicoLider = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_roles(["superadmin"])),
 ):
     return servico.criar_lider(solicitacao)
 
@@ -30,6 +30,22 @@ def listar_lideres(
     servico: ServicoLider = Depends(get_servico),
 ):
     return servico.listar_lideres()
+
+
+# As rotas de listagem por situação ficam antes de "/{lider_id}" para não
+# serem capturadas pela rota de busca por identificador.
+@router.get("/atuais", response_model=list[RespostaLider])
+def listar_lideres_atuais(
+    servico: ServicoLider = Depends(get_servico),
+):
+    return servico.listar_lideres_atuais()
+
+
+@router.get("/diretores-anteriores", response_model=list[RespostaLider])
+def listar_diretores_anteriores(
+    servico: ServicoLider = Depends(get_servico),
+):
+    return servico.listar_diretores_anteriores()
 
 
 @router.get("/{lider_id}", response_model=RespostaLider)
@@ -49,7 +65,7 @@ def atualizar_lider(
     lider_id: int,
     solicitacao: SolicitacaoLider,
     servico: ServicoLider = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_roles(["superadmin"])),
 ):
     try:
         return servico.atualizar_lider(lider_id, solicitacao)
@@ -62,7 +78,7 @@ def atualizar_lider(
 def deletar_lider(
     lider_id: int,
     servico: ServicoLider = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_roles(["superadmin"])),
 ):
     try:
         servico.deletar_lider(lider_id)
