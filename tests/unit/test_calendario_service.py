@@ -50,21 +50,21 @@ class TestServicoCalendario:
     def test_parsear_data_com_date(self, mock_auth_class):
         servico = ServicoCalendario()
         registro = {"start": {"date": "2026-06-10"}}
-        resultado = servico._parsear_data(registro)
+        resultado = servico._parsear_data(registro, "start")
         assert resultado == date(2026, 6, 10)
 
     @patch("src.calendario.service.ServicoAuth")
     def test_parsear_data_com_datetime(self, mock_auth_class):
         servico = ServicoCalendario()
         registro = {"start": {"dateTime": "2026-06-10T10:00:00Z"}}
-        resultado = servico._parsear_data(registro)
+        resultado = servico._parsear_data(registro, "start")
         assert resultado == date(2026, 6, 10)
 
     @patch("src.calendario.service.ServicoAuth")
     def test_parsear_data_sem_data(self, mock_auth_class):
         servico = ServicoCalendario()
         registro = {"start": {}}
-        resultado = servico._parsear_data(registro)
+        resultado = servico._parsear_data(registro, "start")
         assert resultado is None
 
     @patch("src.calendario.service.ServicoAuth")
