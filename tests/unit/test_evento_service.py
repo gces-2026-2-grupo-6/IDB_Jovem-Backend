@@ -28,7 +28,6 @@ def servico(mock_repositorio, mock_calendario, mock_mapa):
 def test_criar_evento(servico, mock_repositorio, mock_calendario, mock_mapa):
     dados = SolicitacaoEvento(
         nome="Teste", 
-        tipo_evento="Conferência",
         data_inicio=datetime.now() + timedelta(days=1), 
         data_fim=datetime.now() + timedelta(days=1, hours=1),
         local_latitude=-15.7942,
@@ -53,7 +52,6 @@ def test_criar_evento(servico, mock_repositorio, mock_calendario, mock_mapa):
 def test_criar_evento_erro_calendario(servico, mock_repositorio, mock_calendario, mock_mapa):
     dados = SolicitacaoEvento(
         nome="Teste", 
-        tipo_evento="Conferência",
         data_inicio=datetime.now() + timedelta(days=1), 
         data_fim=datetime.now() + timedelta(days=1, hours=1),
         local_latitude=0.0,
@@ -79,7 +77,6 @@ def test_atualizar_evento(servico, mock_repositorio, mock_calendario, mock_mapa)
     
     mudancas = SolicitacaoEvento(
         nome="Novo", 
-        tipo_evento="Conferência",
         data_inicio=datetime.now() + timedelta(days=1), 
         data_fim=datetime.now() + timedelta(days=1, hours=1),
         local_latitude=0.0,
