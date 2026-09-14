@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, Numeric, DateTime
+from sqlalchemy import Column, Integer, Text, Numeric, DateTime, Date, ARRAY
 from src.database import Base
 
 
@@ -18,3 +18,4 @@ class Evento(Base):
     nome_local           = Column(Text, nullable=True)
     formulario_link      = Column(Text, nullable=True)
     link_imagem          = Column(Text, nullable=True)
+    datas                = Column(ARRAY(Date), nullable=True)
