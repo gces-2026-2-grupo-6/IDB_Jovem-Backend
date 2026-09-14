@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 from src.evento.service import ServicoEvento
 from src.evento.model import Evento
-from src.evento.schema import SolicitacaoEvento
+from src.evento.schema import SolicitacaoEvento, TipoEvento
 from datetime import datetime, timedelta
 
 @pytest.fixture
@@ -33,7 +33,7 @@ def test_criar_evento(servico, mock_repositorio, mock_calendario, mock_mapa):
         local_latitude=-15.7942,
         local_longitude=-47.8822,
         descricao="Desc",
-        imagem_url="url"
+        tipo_evento=TipoEvento.CONFERENCIA
     )
     
     evento_mock = Evento(**dados.model_dump())
@@ -57,7 +57,7 @@ def test_criar_evento_erro_calendario(servico, mock_repositorio, mock_calendario
         local_latitude=0.0,
         local_longitude=0.0,
         descricao="Desc",
-        imagem_url="url"
+        tipo_evento=TipoEvento.CONFERENCIA
     )
     evento_mock = Evento(**dados.model_dump())
     mock_repositorio.salvar.return_value = evento_mock
@@ -82,7 +82,7 @@ def test_atualizar_evento(servico, mock_repositorio, mock_calendario, mock_mapa)
         local_latitude=0.0,
         local_longitude=0.0,
         descricao="Desc",
-        imagem_url="url"
+        tipo_evento=TipoEvento.CONFERENCIA
     )
     
     servico.atualizar_evento(1, mudancas)
