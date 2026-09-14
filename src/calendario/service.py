@@ -39,9 +39,9 @@ class ServicoCalendario:
             f"{urlencode(parametros)}"
         )
 
-    def _parsear_data(self, registro: dict) -> date | None:
-        inicio = registro.get("start", {})
-        data_texto = inicio.get("date") or inicio.get("dateTime")
+    def _parsear_data(self, registro: dict, chave: str) -> date | None:
+        campo = registro.get(chave, {})
+        data_texto = campo.get("date") or campo.get("dateTime")
         if not data_texto:
             return None
         if "T" in data_texto:
@@ -50,12 +50,14 @@ class ServicoCalendario:
         return date.fromisoformat(data_texto)
 
     def _converter_evento(self, registro: dict) -> RespostaEvento | None:
-        data_evento = self._parsear_data(registro)
-        if not data_evento:
+        data_inicio = self._parsear_data(registro, "start")
+        if not data_inicio:
             return None
+        data_fim = self._parsear_data(registro, "end")
         return RespostaEvento(
             nome=registro.get("summary", "(Sem nome)"),
-            data=data_evento,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
             local=registro.get("location", ""),
         )
 
@@ -89,17 +91,20 @@ class ServicoCalendario:
             return [
                 RespostaEvento(
                     nome="[MOCK] Boas-vindas aos Novos Voluntarios",
-                    data=date(2026, 6, 5),
+                    data_inicio=date(2026, 6, 5),
+                    data_fim=date(2026, 6, 5),
                     local="Auditório Principal"
                 ),
                 RespostaEvento(
                     nome="[MOCK] Alinhamento do Projeto com Cliente",
-                    data=date(2026, 6, 12),
+                    data_inicio=date(2026, 6, 12),
+                    data_fim=date(2026, 6, 12),
                     local="Sala de Reuniões 02"
                 ),
                 RespostaEvento(
                     nome="[MOCK] Mutirao de Cadastro",
-                    data=date(2026, 6, 20),
+                    data_inicio=date(2026, 6, 20),
+                    data_fim=date(2026, 6, 20),
                     local="Comunidade Solar"
                 )
             ]

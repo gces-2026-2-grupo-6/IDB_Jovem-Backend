@@ -74,7 +74,7 @@ class TestListarEvento:
 
     def test_sem_token_eventos_em_2026(self, servico_sem_token):
         eventos = servico_sem_token.listar_evento()
-        assert all(e.data.year == 2026 for e in eventos)
+        assert all(e.data_inicio.year == 2026 for e in eventos)
 
     def test_com_token_erro_de_rede_converte_para_runtimeerror(self, servico_com_token):
         with patch("src.calendario.service.urlopen") as mock_urlopen:
@@ -98,23 +98,23 @@ class TestParsearData:
     def test_data_simples(self, servico_sem_token):
         assert servico_sem_token._parsear_data(
             {"start": {"date": "2025-07-10"}}
-        ) == date(2025, 7, 10)
+        , "start") == date(2025, 7, 10)
 
     def test_data_com_horario_z(self, servico_sem_token):
         assert servico_sem_token._parsear_data(
             {"start": {"dateTime": "2025-07-10T08:00:00Z"}}
-        ) == date(2025, 7, 10)
+        , "start") == date(2025, 7, 10)
 
     def test_data_com_horario_offset(self, servico_sem_token):
         assert servico_sem_token._parsear_data(
             {"start": {"dateTime": "2025-07-10T08:00:00+00:00"}}
-        ) == date(2025, 7, 10)
+        , "start") == date(2025, 7, 10)
 
     def test_sem_start_retorna_none(self, servico_sem_token):
-        assert servico_sem_token._parsear_data({}) is None
+        assert servico_sem_token._parsear_data({}, "start") is None
 
     def test_start_vazio_retorna_none(self, servico_sem_token):
-        assert servico_sem_token._parsear_data({"start": {}}) is None
+        assert servico_sem_token._parsear_data({"start": {}}, "start") is None
 
 
 class TestConverterEvento:
@@ -129,7 +129,7 @@ class TestConverterEvento:
         assert resultado is not None
         assert resultado.nome == "Festa Junina"
         assert resultado.local == "Pátio"
-        assert resultado.data == date(2025, 6, 20)
+        assert resultado.data_inicio == date(2025, 6, 20)
 
     def test_evento_sem_data_retorna_none(self, servico_sem_token):
         assert servico_sem_token._converter_evento({"summary": "X"}) is None
