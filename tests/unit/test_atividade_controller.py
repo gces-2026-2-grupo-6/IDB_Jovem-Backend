@@ -17,14 +17,14 @@ class TestAtividadeController:
     def test_criar_atividade_sucesso(self):
         mock_servico = MagicMock()
         mock_servico.criar_atividade.return_value = MagicMock()
-        resultado = criar_atividade(evento_id=1, solicitar=MagicMock(), servico=mock_servico)
+        resultado = criar_atividade(evento_id=1, solicitar=MagicMock(), servico=mock_servico, _={})
         mock_servico.criar_atividade.assert_called_once()
 
     def test_criar_atividade_erro(self):
         mock_servico = MagicMock()
         mock_servico.criar_atividade.side_effect = ValueError("Evento não encontrado")
         with pytest.raises(HTTPException) as exc:
-            criar_atividade(evento_id=1, solicitar=MagicMock(), servico=mock_servico)
+            criar_atividade(evento_id=1, solicitar=MagicMock(), servico=mock_servico, _={})
         assert exc.value.status_code == 400
 
     def test_buscar_todas_atividades(self):
@@ -49,24 +49,24 @@ class TestAtividadeController:
     def test_atualizar_atividade_sucesso(self):
         mock_servico = MagicMock()
         mock_servico.atualizar_atividade.return_value = MagicMock()
-        resultado = atualizar_atividade(atividade_id=1, solicitar=MagicMock(), servico=mock_servico)
+        resultado = atualizar_atividade(atividade_id=1, solicitar=MagicMock(), servico=mock_servico, _={})
         mock_servico.atualizar_atividade.assert_called_once()
 
     def test_atualizar_atividade_erro(self):
         mock_servico = MagicMock()
         mock_servico.atualizar_atividade.side_effect = ValueError("Erro")
         with pytest.raises(HTTPException) as exc:
-            atualizar_atividade(atividade_id=1, solicitar=MagicMock(), servico=mock_servico)
+            atualizar_atividade(atividade_id=1, solicitar=MagicMock(), servico=mock_servico, _={})
         assert exc.value.status_code == 400
 
     def test_deletar_atividade_sucesso(self):
         mock_servico = MagicMock()
-        deletar_atividade(atividade_id=1, servico=mock_servico)
+        deletar_atividade(atividade_id=1, servico=mock_servico, _={})
         mock_servico.deletar_atividade.assert_called_once_with(1)
 
     def test_deletar_atividade_erro(self):
         mock_servico = MagicMock()
         mock_servico.deletar_atividade.side_effect = ValueError("Não encontrada")
         with pytest.raises(HTTPException) as exc:
-            deletar_atividade(atividade_id=1, servico=mock_servico)
+            deletar_atividade(atividade_id=1, servico=mock_servico, _={})
         assert exc.value.status_code == 404

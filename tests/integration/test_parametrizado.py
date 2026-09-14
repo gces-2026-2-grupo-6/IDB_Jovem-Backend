@@ -52,6 +52,7 @@ def client_atividade():
     app = FastAPI()
     app.include_router(atividade_router)
     app.dependency_overrides[get_servico_atividade] = lambda: mock
+    app.dependency_overrides[obter_usuario_atual] = lambda: USUARIO_ADMIN
     with TestClient(app) as c:
         yield c, mock
     app.dependency_overrides.clear()
@@ -220,6 +221,7 @@ def test_atividade_deletar_varios_ids(client_atividade, atividade_id):
 
 EVENTO_BASE = {
     "nome": "Retiro Teen 2025",
+    "tipo_evento": "Conferência",
     "descricao": "Retiro anual",
     "local_latitude": -15.7801,
     "local_longitude": -47.9292,

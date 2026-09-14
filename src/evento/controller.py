@@ -144,7 +144,7 @@ def remover_participante_evento(
     evento_id: int,
     participante_id: int,
     servico: ServicoEvento = Depends(get_servico),
-    _: dict = Depends(verificar_permissao_setor(SETOR_EVENTOS)),
+    _: dict = Depends(verificar_roles(["superadmin"])),
 ):
     try:
         servico.remover_participante(evento_id, participante_id)

@@ -11,11 +11,13 @@ from fastapi.testclient import TestClient
 from src.main import app
 from src.security import obter_usuario_atual
 from src.database import obter_banco
+from src.evento.schema import RespostaEvento
 
 
 @pytest.fixture
 def mock_db():
     db = MagicMock()
+    db.query.return_value.all.return_value = []
     def mock_salvar(item):
         if hasattr(item, "produto_id") and not item.produto_id:
             item.produto_id = 1
@@ -67,16 +69,26 @@ class TestMatrizAutorizacaoSetores:
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-eventos"])
         payload = {
             "nome": "Congresso 2026",
+            "tipo_evento": "Conferência",
+            "local_latitude": -15.7801,
+            "local_longitude": -47.9292,
             "data_inicio": "2026-10-10T10:00:00Z",
             "data_fim": "2026-10-12T22:00:00Z",
         }
-        resposta = client.post("/evento/", json=payload)
-        assert resposta.status_code != 403
+        with patch("src.evento.service.ServicoEvento.criar_evento") as mock_criar:
+            mock_criar.return_value = RespostaEvento(
+                **payload, evento_id=1, calendario_evento_id=None, nome_local=None
+            )
+            resposta = client.post("/evento/", json=payload)
+            assert resposta.status_code == 201
 
     def test_admin_produtos_nao_pode_criar_evento(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-produtos"])
         payload = {
             "nome": "Congresso 2026",
+            "tipo_evento": "Conferência",
+            "local_latitude": -15.7801,
+            "local_longitude": -47.9292,
             "data_inicio": "2026-10-10T10:00:00Z",
             "data_fim": "2026-10-12T22:00:00Z",
         }
@@ -87,6 +99,11 @@ class TestMatrizAutorizacaoSetores:
     def test_admin_eventos_nao_pode_deletar_evento(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-eventos"])
         resposta = client.delete("/evento/1")
+        assert resposta.status_code == 403
+
+    def test_admin_eventos_nao_pode_remover_participante_evento(self, client):
+        app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-eventos"])
+        resposta = client.delete("/evento/1/participantes/1")
         assert resposta.status_code == 403
 
     # 3. Setor Inscrições / Voluntários
@@ -106,7 +123,18 @@ class TestMatrizAutorizacaoSetores:
         resposta = client.delete("/voluntarios/1")
         assert resposta.status_code == 403
 
-    # 4. Superadministrador tem acesso irrestrito e exclusão permitida
+    # 4. Exclusão de Líder
+    def test_admin_comum_nao_pode_deletar_lider(self, client):
+        app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-eventos"])
+        resposta = client.delete("/lider/1")
+        assert resposta.status_code == 403
+
+    def test_superadmin_pode_deletar_lider(self, client):
+        app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "superadmin"])
+        resposta = client.delete("/lider/1")
+        assert resposta.status_code != 403
+
+    # 5. Superadministrador tem acesso irrestrito e exclusão permitida
     def test_superadmin_pode_deletar_produto(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "superadmin"])
         resposta = client.delete("/produto/1")
@@ -116,6 +144,11 @@ class TestMatrizAutorizacaoSetores:
     def test_superadmin_pode_deletar_evento(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "superadmin"])
         resposta = client.delete("/evento/1")
+        assert resposta.status_code != 403
+
+    def test_superadmin_pode_remover_participante_evento(self, client):
+        app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "superadmin"])
+        resposta = client.delete("/evento/1/participantes/1")
         assert resposta.status_code != 403
 
     def test_superadmin_pode_gerenciar_administradores(self, client):

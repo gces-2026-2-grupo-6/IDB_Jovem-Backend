@@ -4,7 +4,10 @@ from fastapi.testclient import TestClient
 from unittest.mock import MagicMock
 
 from src.atividade.controller import router, get_servico
+from src.security import obter_usuario_atual
 
+
+USUARIO_ADMIN = {"sub": "user-123", "realm_access": {"roles": ["admin", "superadmin"]}}
 
 
 @pytest.fixture
@@ -17,6 +20,7 @@ def client(mock_servico):
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_servico] = lambda: mock_servico
+    app.dependency_overrides[obter_usuario_atual] = lambda: USUARIO_ADMIN
     return TestClient(app)
 
 
