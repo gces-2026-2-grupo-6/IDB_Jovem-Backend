@@ -104,6 +104,12 @@ def verificar_roles(roles_exigidas: list[str]):
         acesso_realm = usuario.get("realm_access", {})
         roles_usuario = acesso_realm.get("roles", [])
 
+        # O campo precisa ser uma colecao de papeis. Quando vem como string,
+        # o operador "in" passaria a comparar substrings e "admin" seria
+        # aceito por casar dentro de "superadmin".
+        if not isinstance(roles_usuario, (list, tuple, set)):
+            roles_usuario = []
+
         if not any(role in roles_usuario for role in roles_exigidas):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
