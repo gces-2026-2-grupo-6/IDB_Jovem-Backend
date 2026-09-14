@@ -92,3 +92,15 @@ $response.access_token
 ```
 
 O `access_token` retornado pode ser usado no header `Authorization: Bearer <token>` das chamadas para o backend.
+
+### Provisão de Papéis em Ambientes Existentes (US03)
+
+O parâmetro `--import-realm` importa o arquivo `keycloak/realm.json` apenas na **primeira inicialização** do contêiner (quando o banco está vazio). Em ambientes existentes onde o realm `jovem` já está persistido no PostgreSQL, os novos papéis devem ser provisionados manualmente no console administrativo:
+
+1. Acesse o console do Keycloak (`http://localhost:8080/admin` ou `auth.<dominio>/admin`) e selecione o realm **jovem**.
+2. No menu lateral, acesse **Realm Roles** e clique em **Create Role**.
+3. Adicione cada um dos papéis de setor:
+   * `admin-eventos` (Administrador de Agenda e Eventos)
+   * `admin-produtos` (Administrador de Loja e Produtos)
+   * `admin-inscricoes` (Administrador de Inscrições e Voluntários)
+4. Associe os papéis desejados a cada administrador em **Users** ➔ [Selecionar Usuário] ➔ **Role Mapping** ➔ **Assign role**.

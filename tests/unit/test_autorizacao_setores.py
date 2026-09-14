@@ -12,6 +12,7 @@ from src.main import app
 from src.security import obter_usuario_atual
 from src.database import obter_banco
 from src.evento.schema import RespostaEvento
+from src.produto.schema import RespostaProduto
 
 
 @pytest.fixture
@@ -48,9 +49,10 @@ class TestMatrizAutorizacaoSetores:
     def test_admin_produtos_pode_criar_produto(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-produtos"])
         payload = {"nome": "Camiseta IDB", "descricao": "Camiseta oficial"}
-        resposta = client.post("/produto/", json=payload)
-        # Não pode ser 403 Forbidden
-        assert resposta.status_code != 403
+        with patch("src.produto.service.ServicoProduto.criar_produto") as mock_criar:
+            mock_criar.return_value = RespostaProduto(produto_id=1, nome="Camiseta IDB", descricao="Camiseta oficial")
+            resposta = client.post("/produto/", json=payload)
+            assert resposta.status_code == 201
 
     def test_admin_eventos_nao_pode_criar_produto(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-eventos"])
@@ -109,8 +111,9 @@ class TestMatrizAutorizacaoSetores:
     # 3. Setor Inscrições / Voluntários
     def test_admin_inscricoes_pode_listar_voluntarios(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-inscricoes"])
-        resposta = client.get("/voluntarios/")
-        assert resposta.status_code != 403
+        with patch("src.voluntario.service.ServicoVoluntario.listar_voluntarios", return_value=[]):
+            resposta = client.get("/voluntarios/")
+            assert resposta.status_code == 200
 
     def test_admin_produtos_nao_pode_listar_voluntarios(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-produtos"])
@@ -131,30 +134,34 @@ class TestMatrizAutorizacaoSetores:
 
     def test_superadmin_pode_deletar_lider(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "superadmin"])
-        resposta = client.delete("/lider/1")
-        assert resposta.status_code != 403
+        with patch("src.lider.service.ServicoLider.deletar_lider", return_value=None):
+            resposta = client.delete("/lider/1")
+            assert resposta.status_code == 204
 
     # 5. Superadministrador tem acesso irrestrito e exclusão permitida
     def test_superadmin_pode_deletar_produto(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "superadmin"])
-        resposta = client.delete("/produto/1")
-        # 404 (recurso inexistente no mock) ou 204, mas NUNCA 403
-        assert resposta.status_code != 403
+        with patch("src.produto.service.ServicoProduto.deletar_produto", return_value=None):
+            resposta = client.delete("/produto/1")
+            assert resposta.status_code == 204
 
     def test_superadmin_pode_deletar_evento(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "superadmin"])
-        resposta = client.delete("/evento/1")
-        assert resposta.status_code != 403
+        with patch("src.evento.service.ServicoEvento.deletar_evento", return_value=None):
+            resposta = client.delete("/evento/1")
+            assert resposta.status_code == 204
 
     def test_superadmin_pode_remover_participante_evento(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "superadmin"])
-        resposta = client.delete("/evento/1/participantes/1")
-        assert resposta.status_code != 403
+        with patch("src.evento.service.ServicoEvento.remover_participante", return_value=None):
+            resposta = client.delete("/evento/1/participantes/1")
+            assert resposta.status_code == 204
 
     def test_superadmin_pode_gerenciar_administradores(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "superadmin"])
-        resposta = client.get("/admin/")
-        assert resposta.status_code != 403
+        with patch("src.admin.service.ServicoAdmin.listar_admins", return_value=[]):
+            resposta = client.get("/admin/")
+            assert resposta.status_code == 200
 
     def test_admin_comum_nao_pode_gerenciar_administradores(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-eventos"])
