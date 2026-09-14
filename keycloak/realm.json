@@ -1,0 +1,45 @@
+{
+  "realm": "jovem",
+  "enabled": true,
+  "displayName": "IDB Jovem",
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrador"
+      },
+      {
+        "name": "superadmin",
+        "description": "Superadministrador"
+      },
+      {
+        "name": "admin-eventos",
+        "description": "Administrador de Eventos"
+      },
+      {
+        "name": "admin-produtos",
+        "description": "Administrador de Produtos"
+      },
+      {
+        "name": "admin-inscricoes",
+        "description": "Administrador de Inscrições"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "jovem-backend",
+      "name": "Jovem Backend",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:8000/*"
+      ],
+      "webOrigins": [
+        "*"
+      ]
+    }
+  ]
+}
