@@ -56,3 +56,7 @@ class RespostaLider(BaseLider):
     lider_id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ErroResposta(BaseModel):
+    detail: str

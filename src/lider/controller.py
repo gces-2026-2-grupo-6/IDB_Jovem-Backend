@@ -5,10 +5,20 @@ from src.database import obter_banco
 from src.security import verificar_roles
 from src.lider.repository import RepositorioLider
 from src.lider.service import ServicoLider
-from src.lider.schema import SolicitacaoLider, RespostaLider
+from src.lider.schema import SolicitacaoLider, RespostaLider, ErroResposta
 
 
 router = APIRouter(prefix="/lider", tags=["lider"])
+
+# Erros documentados no OpenAPI com o mesmo formato {"detail": "..."}
+# devolvido pelo HTTPException. O 422 de validação é declarado pelo FastAPI.
+RESPOSTAS_AUTORIZACAO = {
+    401: {"model": ErroResposta, "description": "Token de acesso expirado ou inválido."},
+    403: {"model": ErroResposta, "description": "Token ausente ou sem o papel superadmin."},
+}
+RESPOSTA_NAO_ENCONTRADO = {
+    404: {"model": ErroResposta, "description": "Líder não encontrado."},
+}
 
 
 def get_servico(db: Session = Depends(obter_banco)):
@@ -16,7 +26,12 @@ def get_servico(db: Session = Depends(obter_banco)):
     return ServicoLider(repositorio)
 
 
-@router.post("/", response_model=RespostaLider, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=RespostaLider,
+    status_code=status.HTTP_201_CREATED,
+    responses=RESPOSTAS_AUTORIZACAO,
+)
 def criar_lider(
     solicitacao: SolicitacaoLider,
     servico: ServicoLider = Depends(get_servico),
@@ -48,7 +63,7 @@ def listar_diretores_anteriores(
     return servico.listar_diretores_anteriores()
 
 
-@router.get("/{lider_id}", response_model=RespostaLider)
+@router.get("/{lider_id}", response_model=RespostaLider, responses=RESPOSTA_NAO_ENCONTRADO)
 def buscar_lider(
     lider_id: int,
     servico: ServicoLider = Depends(get_servico),
@@ -60,7 +75,11 @@ def buscar_lider(
         raise HTTPException(status_code=404, detail=str(erro)) from erro
 
 
-@router.put("/{lider_id}", response_model=RespostaLider)
+@router.put(
+    "/{lider_id}",
+    response_model=RespostaLider,
+    responses={**RESPOSTAS_AUTORIZACAO, **RESPOSTA_NAO_ENCONTRADO},
+)
 def atualizar_lider(
     lider_id: int,
     solicitacao: SolicitacaoLider,
@@ -74,7 +93,11 @@ def atualizar_lider(
         raise HTTPException(status_code=404, detail=str(erro)) from erro
 
 
-@router.delete("/{lider_id}", status_code=204)
+@router.delete(
+    "/{lider_id}",
+    status_code=204,
+    responses={**RESPOSTAS_AUTORIZACAO, **RESPOSTA_NAO_ENCONTRADO},
+)
 def deletar_lider(
     lider_id: int,
     servico: ServicoLider = Depends(get_servico),

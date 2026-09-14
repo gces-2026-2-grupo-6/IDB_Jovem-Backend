@@ -237,3 +237,61 @@ class TestEscritaRestritaASuperadmin:
 
         assert response.status_code in (401, 403)
         assert servico.method_calls == []
+
+
+class TestErrosPadronizados:
+    @pytest.mark.parametrize(
+        "metodo, rota, corpo, servico_metodo",
+        [
+            pytest.param("get", "/lider/999", None, "buscar_lider", id="GET"),
+            pytest.param("put", "/lider/999", PERFIL_COMPLETO, "atualizar_lider", id="PUT"),
+            pytest.param("delete", "/lider/999", None, "deletar_lider", id="DELETE"),
+        ],
+    )
+    def test_404_tem_mensagem_unica(self, client_superadmin, metodo, rota, corpo, servico_metodo):
+        client, servico = client_superadmin
+        getattr(servico, servico_metodo).side_effect = ValueError("Líder não encontrado.")
+
+        response = _chamar(client, metodo, rota, corpo)
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Líder não encontrado."}
+
+    def test_403_informa_o_papel_exigido(self, servico_mock):
+        with _montar_client(servico_mock, USUARIO_ADMIN) as client:
+            response = client.post("/lider/", json=PERFIL_COMPLETO)
+
+        assert response.status_code == 403
+        assert "superadmin" in response.json()["detail"]
+
+    def test_422_de_redes_sociais_explica_o_formato(self, client_superadmin):
+        client, _ = client_superadmin
+
+        response = client.post("/lider/", json={**PERFIL_COMPLETO, "redes_sociais": "@ana"})
+
+        assert response.status_code == 422
+        erro = response.json()["detail"][0]
+        assert erro["loc"] == ["body", "redes_sociais"]
+        assert "objeto JSON" in erro["msg"]
+
+    def test_openapi_declara_os_erros_de_cada_rota(self, client_publico):
+        client, _ = client_publico
+        caminhos = client.app.openapi()["paths"]
+
+        def codigos(caminho, metodo):
+            return set(caminhos[caminho][metodo]["responses"])
+
+        assert {"201", "401", "403", "422"} <= codigos("/lider/", "post")
+        assert {"200", "404", "422"} <= codigos("/lider/{lider_id}", "get")
+        assert {"200", "401", "403", "404", "422"} <= codigos("/lider/{lider_id}", "put")
+        assert {"204", "401", "403", "404"} <= codigos("/lider/{lider_id}", "delete")
+        assert set(caminhos) >= {"/lider/", "/lider/atuais", "/lider/diretores-anteriores"}
+
+    def test_openapi_documenta_o_formato_do_erro(self, client_publico):
+        client, _ = client_publico
+        esquema = client.app.openapi()
+
+        resposta_404 = esquema["paths"]["/lider/{lider_id}"]["get"]["responses"]["404"]
+        referencia = resposta_404["content"]["application/json"]["schema"]["$ref"]
+        assert referencia.endswith("/ErroResposta")
+        assert esquema["components"]["schemas"]["ErroResposta"]["required"] == ["detail"]
