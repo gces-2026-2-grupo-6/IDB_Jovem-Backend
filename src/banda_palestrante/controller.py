@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.database import obter_banco
-from src.security import verificar_roles
+from src.security import verificar_roles, verificar_permissao_setor, SETOR_EVENTOS
 from src.banda_palestrante.repository import RepositorioBandaPalestrante
 from src.banda_palestrante.service import ServicoBandaPalestrante
 from src.banda_palestrante.schema import (
@@ -27,7 +27,7 @@ def get_servico(db: Session = Depends(obter_banco)):
 def criar_banda_palestrante(
     solicitacao: SolicitacaoBandaPalestrante,
     servico: ServicoBandaPalestrante = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_permissao_setor(SETOR_EVENTOS)),
 ):
     return servico.criar_banda_palestrante(solicitacao)
 
@@ -56,7 +56,7 @@ def atualizar_banda_palestrante(
     participante_id: int,
     solicitacao: SolicitacaoBandaPalestrante,
     servico: ServicoBandaPalestrante = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_permissao_setor(SETOR_EVENTOS)),
 ):
     try:
         return servico.atualizar_banda_palestrante(participante_id, solicitacao)
@@ -69,7 +69,7 @@ def atualizar_banda_palestrante(
 def deletar_banda_palestrante(
     participante_id: int,
     servico: ServicoBandaPalestrante = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_roles(["superadmin"])),
 ):
     try:
         servico.deletar_banda_palestrante(participante_id)

@@ -234,3 +234,64 @@ class TestVerificarRoles:
         with pytest.raises(HTTPException) as exc:
             dependencia(usuario=usuario)
         assert exc.value.status_code == 403
+
+
+class TestVerificarPermissaoSetor:
+    def test_superadmin_acessa_qualquer_setor(self):
+        from src.security import (
+            verificar_permissao_setor,
+            SETOR_EVENTOS,
+            SETOR_PRODUTOS,
+            SETOR_INSCRICOES,
+        )
+        usuario = {"realm_access": {"roles": ["admin", "superadmin"]}}
+        assert verificar_permissao_setor(SETOR_EVENTOS)(usuario=usuario) == usuario
+        assert verificar_permissao_setor(SETOR_PRODUTOS)(usuario=usuario) == usuario
+        assert verificar_permissao_setor(SETOR_INSCRICOES)(usuario=usuario) == usuario
+
+    def test_admin_setor_especifico_acessa_seu_setor(self):
+        from src.security import verificar_permissao_setor, SETOR_EVENTOS, SETOR_PRODUTOS
+        usuario_eventos = {"realm_access": {"roles": ["admin", "admin-eventos"]}}
+        # Acesso permitido ao seu próprio setor
+        assert verificar_permissao_setor(SETOR_EVENTOS)(usuario=usuario_eventos) == usuario_eventos
+
+        # Acesso negado a outros setores
+        with pytest.raises(HTTPException) as exc:
+            verificar_permissao_setor(SETOR_PRODUTOS)(usuario=usuario_eventos)
+        assert exc.value.status_code == 403
+        assert "Acesso negado ao setor" in exc.value.detail
+
+    def test_admin_dois_setores_acessa_ambos_mas_nao_terceiro(self):
+        from src.security import (
+            verificar_permissao_setor,
+            SETOR_EVENTOS,
+            SETOR_PRODUTOS,
+            SETOR_INSCRICOES,
+        )
+        usuario_dois = {"realm_access": {"roles": ["admin", "admin-produtos", "admin-inscricoes"]}}
+        assert verificar_permissao_setor(SETOR_PRODUTOS)(usuario=usuario_dois) == usuario_dois
+        assert verificar_permissao_setor(SETOR_INSCRICOES)(usuario=usuario_dois) == usuario_dois
+
+        with pytest.raises(HTTPException) as exc:
+            verificar_permissao_setor(SETOR_EVENTOS)(usuario=usuario_dois)
+        assert exc.value.status_code == 403
+
+    def test_admin_legado_sem_papel_de_setor_mantem_acesso_geral(self):
+        from src.security import verificar_permissao_setor, SETOR_EVENTOS, SETOR_PRODUTOS
+        usuario_legado = {"realm_access": {"roles": ["admin"]}}
+        assert verificar_permissao_setor(SETOR_EVENTOS)(usuario=usuario_legado) == usuario_legado
+        assert verificar_permissao_setor(SETOR_PRODUTOS)(usuario=usuario_legado) == usuario_legado
+
+    def test_usuario_sem_admin_tem_acesso_negado(self):
+        from src.security import verificar_permissao_setor, SETOR_EVENTOS
+        usuario_comum = {"realm_access": {"roles": ["viewer"]}}
+        with pytest.raises(HTTPException) as exc:
+            verificar_permissao_setor(SETOR_EVENTOS)(usuario=usuario_comum)
+        assert exc.value.status_code == 403
+
+    def test_papel_de_setor_sem_papel_admin_negado(self):
+        from src.security import verificar_permissao_setor, SETOR_EVENTOS
+        usuario_invalido = {"realm_access": {"roles": ["admin-eventos"]}}
+        with pytest.raises(HTTPException) as exc:
+            verificar_permissao_setor(SETOR_EVENTOS)(usuario=usuario_invalido)
+        assert exc.value.status_code == 403

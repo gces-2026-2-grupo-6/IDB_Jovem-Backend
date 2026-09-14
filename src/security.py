@@ -115,3 +115,53 @@ def verificar_roles(roles_exigidas: list[str]):
         return usuario
 
     return dependencia
+
+
+SETOR_EVENTOS = "eventos"
+SETOR_PRODUTOS = "produtos"
+SETOR_INSCRICOES = "inscricoes"
+
+PAPEL_DO_SETOR = {
+    SETOR_EVENTOS: "admin-eventos",
+    SETOR_PRODUTOS: "admin-produtos",
+    SETOR_INSCRICOES: "admin-inscricoes",
+}
+
+TODOS_PAPEIS_SETORES = set(PAPEL_DO_SETOR.values())
+
+
+def verificar_permissao_setor(setor_alvo: str):
+    """
+    Fabrica de dependencias para verificar permissao de administrador por setor (US03 / RF01).
+    - superadmin: acesso total a todos os setores.
+    - admin:
+        - Se possuir papeis especificos de setor, exige o papel correspondente ao setor alvo.
+        - Se nao possuir nenhum papel especifico de setor, mantem acesso geral (retrocompatibilidade).
+    - Outros: HTTP 403 Forbidden.
+    """
+    papel_esperado = PAPEL_DO_SETOR.get(setor_alvo)
+
+    def dependencia(usuario: dict = Depends(obter_usuario_atual)):
+        acesso_realm = usuario.get("realm_access", {})
+        roles_usuario = set(acesso_realm.get("roles", []))
+
+        if "superadmin" in roles_usuario:
+            return usuario
+
+        if "admin" not in roles_usuario:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Acesso negado. Requer permissão de administrador para o setor '{setor_alvo}'.",
+            )
+
+        papeis_de_setor = roles_usuario.intersection(TODOS_PAPEIS_SETORES)
+        if papeis_de_setor and papel_esperado not in roles_usuario:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Acesso negado ao setor '{setor_alvo}'. Requer o papel '{papel_esperado}' ou superadmin.",
+            )
+
+        return usuario
+
+    return dependencia
+
