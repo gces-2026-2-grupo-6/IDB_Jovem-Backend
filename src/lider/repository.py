@@ -13,7 +13,27 @@ class RepositorioLider:
         return lider
 
     def buscar_todos(self) -> list[Lider]:
-        return self.db.query(Lider).order_by(Lider.ordem).all()
+        return (
+            self.db.query(Lider)
+            .order_by(Lider.ordem, Lider.lider_id)
+            .all()
+        )
+
+    def buscar_lideres_atuais(self) -> list[Lider]:
+        return (
+            self.db.query(Lider)
+            .filter(Lider.is_antigo.is_(False))
+            .order_by(Lider.ordem, Lider.lider_id)
+            .all()
+        )
+
+    def buscar_diretores_anteriores(self) -> list[Lider]:
+        return (
+            self.db.query(Lider)
+            .filter(Lider.is_antigo.is_(True))
+            .order_by(Lider.ordem, Lider.lider_id)
+            .all()
+        )
 
     def buscar_por_id(self, lider_id: int) -> Lider | None:
         return (
