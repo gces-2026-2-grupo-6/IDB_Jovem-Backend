@@ -30,7 +30,7 @@ def criar_admin(
 @router.get("/", response_model=list[RespostaAdmin])
 def listar_admins(
     servico: ServicoAdmin = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"]))
+    _: dict = Depends(verificar_roles(["superadmin"]))
 ):
     return servico.listar_admins()
 
@@ -39,7 +39,7 @@ def listar_admins(
 def buscar_admin(
     admin_id: int,
     servico: ServicoAdmin = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"]))
+    _: dict = Depends(verificar_roles(["superadmin"]))
 ):
     try:
         return servico.buscar_admin(admin_id)

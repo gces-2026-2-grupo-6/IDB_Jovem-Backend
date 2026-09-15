@@ -62,7 +62,7 @@ def atualizar_lider(
 def deletar_lider(
     lider_id: int,
     servico: ServicoLider = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_roles(["superadmin"])),
 ):
     try:
         servico.deletar_lider(lider_id)

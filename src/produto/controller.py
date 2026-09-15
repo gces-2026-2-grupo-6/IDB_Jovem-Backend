@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.database import obter_banco
-from src.security import verificar_roles
+from src.security import verificar_roles, verificar_permissao_setor, SETOR_PRODUTOS
 from src.produto.repository import RepositorioProduto
 from src.produto.service import ServicoProduto
 from src.produto.schema import SolicitacaoProduto, RespostaProduto
@@ -20,7 +20,7 @@ def get_servico(db: Session = Depends(obter_banco)):
 def criar_produto(
     solicitacao: SolicitacaoProduto,
     servico: ServicoProduto = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["superadmin"])),
+    _: dict = Depends(verificar_permissao_setor(SETOR_PRODUTOS)),
 ):
     return servico.criar_produto(solicitacao)
 
@@ -49,7 +49,7 @@ def atualizar_produto(
     produto_id: int,
     solicitacao: SolicitacaoProduto,
     servico: ServicoProduto = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["superadmin"])),
+    _: dict = Depends(verificar_permissao_setor(SETOR_PRODUTOS)),
 ):
     try:
         return servico.atualizar_produto(produto_id, solicitacao)

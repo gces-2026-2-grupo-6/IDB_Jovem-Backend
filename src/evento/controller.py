@@ -11,7 +11,7 @@ from src.drive.schema import RespostaDrive
 from src.drive.service import ServicoDrive
 from src.mapa.service import ServicoMapa
 from src.banda_palestrante.schema import RespostaBandaPalestrante
-from src.security import verificar_roles
+from src.security import verificar_roles, verificar_permissao_setor, SETOR_EVENTOS
 
 router = APIRouter(prefix="/evento", tags=["evento"])
 security = HTTPBearer()
@@ -29,7 +29,7 @@ def get_servico(db: Session = Depends(obter_banco)):
 def criar_evento(
     solicitar: SolicitacaoEvento,
     servico: ServicoEvento = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"]))
+    _: dict = Depends(verificar_permissao_setor(SETOR_EVENTOS))
 ):
     try:
         return servico.criar_evento(solicitar)
@@ -63,7 +63,7 @@ def atualizar_evento(
     evento_id: int,
     solicitar: SolicitacaoEvento,
     servico: ServicoEvento = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"]))
+    _: dict = Depends(verificar_permissao_setor(SETOR_EVENTOS))
 ):
     try:
         return servico.atualizar_evento(evento_id, solicitar)
@@ -75,7 +75,7 @@ def atualizar_evento(
 def deletar_evento(
     evento_id: int,
     servico: ServicoEvento = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"]))
+    _: dict = Depends(verificar_roles(["superadmin"]))
 ):
     try:
         servico.deletar_evento(evento_id)
@@ -128,7 +128,7 @@ def adicionar_participante_evento(
     evento_id: int,
     participante_id: int,
     servico: ServicoEvento = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_permissao_setor(SETOR_EVENTOS)),
 ):
     try:
         return servico.adicionar_participante(evento_id, participante_id)
@@ -144,7 +144,7 @@ def remover_participante_evento(
     evento_id: int,
     participante_id: int,
     servico: ServicoEvento = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_roles(["superadmin"])),
 ):
     try:
         servico.remover_participante(evento_id, participante_id)
