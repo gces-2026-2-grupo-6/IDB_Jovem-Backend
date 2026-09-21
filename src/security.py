@@ -98,17 +98,27 @@ async def obter_usuario_atual(
             detail=f"Falha ao validar o token do Keycloak: {erro}",
         ) from erro
 
+def _papeis_do_token(usuario: dict) -> set[str]:
+    """Extrai os papeis de realm do token; formato inesperado vale como nenhum papel.
+
+    O campo precisa ser uma colecao de strings. Como string, o operador "in"
+    compararia substrings e "admin" casaria dentro de "superadmin". Como None,
+    ou com realm_access fora do formato, a leitura levantaria excecao e a rota
+    responderia 500 em vez de 403.
+    """
+    acesso_realm = usuario.get("realm_access")
+    if not isinstance(acesso_realm, dict):
+        return set()
+    roles = acesso_realm.get("roles")
+    if not isinstance(roles, (list, tuple, set)):
+        return set()
+    return {papel for papel in roles if isinstance(papel, str)}
+
+
 def verificar_roles(roles_exigidas: list[str]):
     """Fabrica de dependencias para verificar multiplos papeis."""
     def dependencia(usuario: dict = Depends(obter_usuario_atual)):
-        acesso_realm = usuario.get("realm_access", {})
-        roles_usuario = acesso_realm.get("roles", [])
-
-        # O campo precisa ser uma colecao de papeis. Quando vem como string,
-        # o operador "in" passaria a comparar substrings e "admin" seria
-        # aceito por casar dentro de "superadmin".
-        if not isinstance(roles_usuario, (list, tuple, set)):
-            roles_usuario = []
+        roles_usuario = _papeis_do_token(usuario)
 
         if not any(role in roles_usuario for role in roles_exigidas):
             raise HTTPException(
@@ -148,8 +158,7 @@ def verificar_permissao_setor(setor_alvo: str):
     papel_esperado = PAPEL_DO_SETOR.get(setor_alvo)
 
     def dependencia(usuario: dict = Depends(obter_usuario_atual)):
-        acesso_realm = usuario.get("realm_access", {})
-        roles_usuario = set(acesso_realm.get("roles", []))
+        roles_usuario = _papeis_do_token(usuario)
 
         if "superadmin" in roles_usuario:
             return usuario
