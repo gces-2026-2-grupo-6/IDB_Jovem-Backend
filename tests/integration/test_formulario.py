@@ -4,6 +4,9 @@ from fastapi.testclient import TestClient
 from unittest.mock import MagicMock
 
 from src.formulario.controller import router, get_servico
+from src.security import obter_usuario_atual
+
+USUARIO_INSCRICOES = {"realm_access": {"roles": ["admin", "admin-inscricoes"]}}
 
 
 
@@ -17,9 +20,42 @@ def client(mock_servico):
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_servico] = lambda: mock_servico
+    app.dependency_overrides[obter_usuario_atual] = lambda: USUARIO_INSCRICOES
     with TestClient(app) as c:
         yield c, mock_servico
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def app_sem_override_de_usuario(mock_servico):
+    app = FastAPI()
+    app.include_router(router)
+    app.dependency_overrides[get_servico] = lambda: mock_servico
+    yield app
+    app.dependency_overrides.clear()
+
+
+class TestAutorizacaoInscricoes:
+    """
+    A lista devolve nome e e-mail de cada inscrito e grava voluntarios no
+    banco. Ate a Sprint 2 era publica: qualquer pessoa podia enumerar os
+    inscritos de todos os eventos pelo id.
+    """
+
+    def test_sem_token_e_negado(self, app_sem_override_de_usuario, mock_servico):
+        with TestClient(app_sem_override_de_usuario) as c:
+            resposta = c.get("/formulario/eventos/1/inscricoes")
+        assert resposta.status_code in (401, 403)
+        mock_servico.listar_inscricoes.assert_not_called()
+
+    def test_admin_de_outro_setor_e_negado(self, app_sem_override_de_usuario, mock_servico):
+        app_sem_override_de_usuario.dependency_overrides[obter_usuario_atual] = (
+            lambda: {"realm_access": {"roles": ["admin", "admin-eventos"]}}
+        )
+        with TestClient(app_sem_override_de_usuario) as c:
+            resposta = c.get("/formulario/eventos/1/inscricoes")
+        assert resposta.status_code == 403
+        mock_servico.listar_inscricoes.assert_not_called()
 
 
 
