@@ -10,15 +10,17 @@ A elicitacao com a cliente definiu que:
     e Inscricoes;
   - Nao ha separacao de acesso entre Jovem e Teen.
 
-O sistema atual reconhece somente dois papeis de realm no Keycloak: "admin" e
-"superadmin". Este arquivo fixa o comportamento vigente antes da implementacao
-da US03, para que a mudanca seja feita com rede de protecao, e sinaliza as
-lacunas encontradas na auditoria.
+Este arquivo cobre o que a verificacao de papeis NAO pode aceitar: negacao
+de acesso e tentativas de escalonamento de privilegio.
+
+O restante da autorizacao fica em:
+  - tests/unit/test_matriz_rotas.py     exigencia de cada rota, lida do codigo
+  - tests/unit/test_token_malformado.py papeis em formato inesperado
+  - tests/unit/test_security.py         leitura do token e as duas guardas
+  - tests/unit/test_autorizacao_setores.py  setores via HTTP
 
 Referencia: IDB_Jovem-Documentacao — docs/projeto/matriz-autorizacao.md
 """
-
-from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -38,22 +40,6 @@ def executar(roles_exigidas, usuario):
     """Executa a dependencia de autorizacao fora do ciclo do FastAPI."""
     dependencia = verificar_roles(roles_exigidas)
     return dependencia(usuario=usuario)
-
-
-class TestPapeisReconhecidos:
-    """O sistema hoje reconhece apenas dois papeis de realm."""
-
-    def test_superadmin_acessa_rota_de_superadmin(self):
-        usuario = usuario_com_papeis(SUPERADMIN)
-        assert executar([SUPERADMIN], usuario) is usuario
-
-    def test_admin_acessa_rota_compartilhada(self):
-        usuario = usuario_com_papeis(ADMIN)
-        assert executar([ADMIN, SUPERADMIN], usuario) is usuario
-
-    def test_superadmin_acessa_rota_compartilhada(self):
-        usuario = usuario_com_papeis(SUPERADMIN)
-        assert executar([ADMIN, SUPERADMIN], usuario) is usuario
 
 
 class TestNegacaoDeAcesso:
@@ -116,66 +102,3 @@ class TestEscalonamentoDePrivilegio:
         }
         with pytest.raises(HTTPException):
             executar([SUPERADMIN], usuario)
-
-    def test_roles_como_string_nao_concede_acesso(self):
-        """Campo malformado nao pode ser interpretado como lista de papeis."""
-        usuario = {"realm_access": {"roles": "superadmin"}}
-        dependencia = verificar_roles([SUPERADMIN])
-        try:
-            dependencia(usuario=usuario)
-        except HTTPException as erro:
-            assert erro.status_code == 403
-        else:
-            pytest.fail(
-                "Papeis enviados como string foram aceitos: a verificacao usa "
-                "'in', que casa substring quando o valor nao e uma lista."
-            )
-
-
-class TestMatrizDeRotasProtegidas:
-    """
-    Espelha a matriz documentada em docs/qualidade/matriz-autorizacao.md.
-
-    Se um controlador mudar a exigencia de papel, este teste falha e obriga a
-    atualizacao da documentacao junto do codigo.
-    """
-
-    MATRIZ = [
-        ("POST /evento", [ADMIN, SUPERADMIN]),
-        ("PUT /evento/{id}", [ADMIN, SUPERADMIN]),
-        ("DELETE /evento/{id}", [ADMIN, SUPERADMIN]),
-        ("POST /lider", [ADMIN, SUPERADMIN]),
-        ("PUT /lider/{id}", [ADMIN, SUPERADMIN]),
-        ("DELETE /lider/{id}", [ADMIN, SUPERADMIN]),
-        ("POST /produto", [SUPERADMIN]),
-        ("PUT /produto/{id}", [SUPERADMIN]),
-        ("DELETE /produto/{id}", [SUPERADMIN]),
-        ("POST /voluntario", [ADMIN, SUPERADMIN]),
-        ("POST /banda-palestrante", [ADMIN, SUPERADMIN]),
-        ("POST /admin", [SUPERADMIN]),
-        ("DELETE /admin/{id}", [SUPERADMIN]),
-    ]
-
-    @pytest.mark.parametrize("rota,roles", MATRIZ)
-    def test_superadmin_alcanca_toda_rota_da_matriz(self, rota, roles):
-        usuario = usuario_com_papeis(SUPERADMIN)
-        assert executar(roles, usuario) is usuario
-
-    @pytest.mark.parametrize("rota,roles", MATRIZ)
-    def test_usuario_sem_papel_e_negado_em_toda_rota_da_matriz(self, rota, roles):
-        usuario = usuario_com_papeis()
-        with pytest.raises(HTTPException) as erro:
-            executar(roles, usuario)
-        assert erro.value.status_code == 403
-
-    @pytest.mark.parametrize(
-        "rota",
-        [r for r, roles in MATRIZ if roles == [SUPERADMIN]],
-    )
-    def test_admin_e_negado_nas_rotas_exclusivas_de_superadmin(self, rota):
-        usuario = usuario_com_papeis(ADMIN)
-        with pytest.raises(HTTPException) as erro:
-            executar([SUPERADMIN], usuario)
-        assert erro.value.status_code == 403
-
-
