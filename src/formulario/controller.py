@@ -5,6 +5,7 @@ from src.database import obter_banco
 from src.formulario.repository import RepositorioFormulario
 from src.formulario.service import ServicoFormulario
 from src.formulario.schema import RespostaInscricaoFormulario
+from src.security import verificar_permissao_setor, SETOR_INSCRICOES
 
 
 router = APIRouter(prefix="/formulario", tags=["Formulario"])
@@ -23,6 +24,7 @@ def listar_inscricoes(
     evento_id: int,
     db: Session = Depends(obter_banco),
     servico: ServicoFormulario = Depends(get_servico),
+    _: dict = Depends(verificar_permissao_setor(SETOR_INSCRICOES)),
 ):
     try:
         return servico.listar_inscricoes(db, evento_id)
