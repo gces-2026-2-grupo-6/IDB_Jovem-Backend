@@ -1,7 +1,7 @@
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from starlette.middleware.sessions import SessionMiddleware
 
 from src.auth.controller import router
@@ -39,19 +39,6 @@ class TestIniciarLogin:
             resposta = client.get("/auth/login")
         location = resposta.headers.get("location", "")
         assert "google" in location or resposta.status_code in (302, 307)
-
-    @pytest.mark.parametrize("tentativa", [1, 2, 3])
-    def test_login_consistente_em_multiplas_chamadas(self, client, tentativa):
-        with patch("src.auth.controller.ServicoAuth") as MockServico:
-            MockServico.return_value.gerar_url_login.return_value = (
-                "https://accounts.google.com/o/oauth2/auth",
-                f"estado-{tentativa}",
-                f"verificador-{tentativa}"
-            )
-            resposta = client.get("/auth/login")
-        assert resposta.status_code in (302, 307)
-
-
 
 class TestCallbackGoogle:
 

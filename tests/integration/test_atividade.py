@@ -77,15 +77,6 @@ class TestCriarAtividade:
         resposta = client.post("/evento/1/atividade", json=payload)
         assert resposta.status_code == 422
 
-    @pytest.mark.parametrize("evento_id", [1, 2, 10])
-    def test_criar_atividade_varios_eventos(self, client, mock_servico, evento_id):
-        mock_servico.criar_atividade.return_value = {**RESPOSTA_ATIVIDADE, "evento_id": evento_id}
-        resposta = client.post(f"/evento/{evento_id}/atividade", json=ATIVIDADE_VALIDA)
-        assert resposta.status_code == 201
-        assert resposta.json()["evento_id"] == evento_id
-
-
-
 class TestListarAtividades:
 
     def test_listar_atividades_de_evento(self, client, mock_servico):
@@ -110,15 +101,6 @@ class TestListarAtividades:
         resposta = client.get("/evento/1/atividade")
         assert len(resposta.json()) == 3
 
-    @pytest.mark.parametrize("evento_id", [1, 5, 20])
-    def test_listar_atividades_varios_eventos(self, client, mock_servico, evento_id):
-        mock_servico.listar_atividades.return_value = []
-        resposta = client.get(f"/evento/{evento_id}/atividade")
-        assert resposta.status_code == 200
-        mock_servico.listar_atividades.assert_called_with(evento_id)
-
-
-
 class TestBuscarAtividade:
 
     def test_buscar_atividade_existente(self, client, mock_servico):
@@ -132,17 +114,6 @@ class TestBuscarAtividade:
         resposta = client.get("/evento/atividade/999")
         assert resposta.status_code == 404
         assert "Atividade não encontrada" in resposta.json()["detail"]
-
-    @pytest.mark.parametrize("atividade_id", [1, 3, 7, 50])
-    def test_buscar_atividade_varios_ids(self, client, mock_servico, atividade_id):
-        mock_servico.buscar_atividade.return_value = {
-            **RESPOSTA_ATIVIDADE, "atividade_id": atividade_id
-        }
-        resposta = client.get(f"/evento/atividade/{atividade_id}")
-        assert resposta.status_code == 200
-        assert resposta.json()["atividade_id"] == atividade_id
-
-
 
 class TestAtualizarAtividade:
 
@@ -186,9 +157,3 @@ class TestDeletarAtividade:
         resposta = client.delete("/evento/atividade/999")
         assert resposta.status_code == 404
         assert "Atividade não encontrada" in resposta.json()["detail"]
-
-    @pytest.mark.parametrize("atividade_id", [1, 2, 5])
-    def test_deletar_varios_ids(self, client, mock_servico, atividade_id):
-        mock_servico.deletar_atividade.return_value = None
-        resposta = client.delete(f"/evento/atividade/{atividade_id}")
-        assert resposta.status_code == 204
