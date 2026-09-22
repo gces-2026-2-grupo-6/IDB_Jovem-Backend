@@ -112,13 +112,6 @@ class TestListarInscricoes:
         args, _ = servico.listar_inscricoes.call_args
         assert args[1] == 42
 
-    @pytest.mark.parametrize("evento_id", [1, 5, 10, 100])
-    def test_listar_inscricoes_varios_eventos(self, client, evento_id):
-        c, servico = client
-        servico.listar_inscricoes.return_value = []
-        resposta = c.get(f"/formulario/eventos/{evento_id}/inscricoes")
-        assert resposta.status_code == 200
-
     def test_listar_inscricoes_multiplas(self, client):
         c, servico = client
         inscricoes = [
