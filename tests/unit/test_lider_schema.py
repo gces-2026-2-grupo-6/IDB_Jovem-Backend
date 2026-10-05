@@ -37,6 +37,7 @@ def test_campos_de_perfil_sao_opcionais():
     assert lider.regiao is None
     assert lider.mini_biografia is None
     assert lider.redes_sociais is None
+    assert lider.gestao is None
 
 
 def test_is_antigo_e_falso_por_padrao():
@@ -48,10 +49,15 @@ def test_is_antigo_respeita_a_marcacao_manual():
 
 
 @pytest.mark.parametrize("valor", ["", "   "])
-@pytest.mark.parametrize("campo", ["regiao", "mini_biografia"])
+@pytest.mark.parametrize("campo", ["regiao", "mini_biografia", "gestao"])
 def test_texto_vazio_vira_nulo(campo, valor):
     lider = SolicitacaoLider(nome="Ana", cargo="Líder", **{campo: valor})
     assert getattr(lider, campo) is None
+
+
+def test_aceita_gestao_de_diretor_anterior():
+    lider = SolicitacaoLider(nome="Carlos", cargo="Diretor", is_antigo=True, gestao=" 2015 – 2020 ")
+    assert lider.gestao == "2015 – 2020"
 
 
 def test_texto_e_aparado():
@@ -107,11 +113,11 @@ def test_redes_sociais_recusa_nome_de_rede_vazio():
 
 
 def test_campos_desconhecidos_sao_ignorados():
-    lider = SolicitacaoLider(nome="Ana", cargo="Líder", bio="texto", gestao="2020 - 2023")
+    lider = SolicitacaoLider(nome="Ana", cargo="Líder", bio="texto", campo_inexistente="x")
     dados = lider.model_dump()
 
     assert "bio" not in dados
-    assert "gestao" not in dados
+    assert "campo_inexistente" not in dados
 
 
 def test_resposta_expoe_perfil_a_partir_do_modelo():

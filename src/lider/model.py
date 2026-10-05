@@ -13,3 +13,4 @@ class Lider(Base):
     regiao         = Column(Text, nullable=True)
     mini_biografia = Column(Text, nullable=True)
     redes_sociais  = Column(JSON, nullable=True)
+    gestao         = Column(Text, nullable=True)

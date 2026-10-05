@@ -120,6 +120,7 @@ class TestLeituraPublica:
         assert response.status_code == 200
         assert [l["lider_id"] for l in response.json()] == [2, 3]
         assert all(l["is_antigo"] for l in response.json())
+        assert response.json()[0]["gestao"] == "2015 – 2020"
         servico.buscar_lider.assert_not_called()
 
     def test_buscar_por_id(self, client_publico):
