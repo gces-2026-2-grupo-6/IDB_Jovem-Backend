@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from src.database import obter_banco
 from src.evento.repository import RepositorioEvento
 from src.evento.service import ServicoEvento
-from src.evento.schema import RespostaEvento, SolicitacaoEvento
+from src.evento.schema import RespostaEvento, SolicitacaoEvento, RespostaItemGaleria
 from src.calendario.service import ServicoCalendario
 from src.drive.schema import RespostaDrive
 from src.drive.service import ServicoDrive
@@ -81,6 +81,42 @@ def deletar_evento(
         servico.deletar_evento(evento_id)
     except ValueError as erro:
         raise HTTPException(status_code=404, detail=str(erro)) from erro
+
+
+@router.get("/galerias/todas", response_model=list[RespostaItemGaleria])
+def listar_todas_galerias(servico: ServicoEvento = Depends(get_servico)):
+    """
+    Retorna de uma vez todas as fotos de todos os eventos que possuem galeria configurada,
+    evitando N+1 requisicoes (DDoS no backend). O resultado já traz o nome do evento.
+    """
+    try:
+        eventos = servico.listar_evento()
+        drive = ServicoDrive()
+        resultado = []
+
+        for evento in eventos:
+            if not evento.link_galeria:
+                continue
+
+            try:
+                fotos = drive.listar_fotos(evento.link_galeria)
+                for foto in fotos:
+                    resultado.append(
+                        RespostaItemGaleria(
+                            id=foto.id,
+                            image=foto.url_visualizacao,
+                            event=evento.nome,
+                            location=evento.nome_local or ""
+                        )
+                    )
+            except Exception as e:
+                print(f"Erro ao buscar galeria do evento {evento.evento_id}: {e}")
+                continue
+
+        return resultado
+
+    except RuntimeError as erro:
+        raise HTTPException(status_code=502, detail=str(erro)) from erro
 
 
 @router.get("/{evento_id}/galeria", response_model=list[RespostaDrive])

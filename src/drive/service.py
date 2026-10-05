@@ -9,6 +9,9 @@ from src.drive.schema import RespostaDrive
 from src.drive.utils import montar_url_proxy
 from src.auth.service import ServicoAuth
 
+# Cache em memoria: { id_pasta: (timestamp, fotos) }
+_CACHE_GALERIAS: dict[str, tuple[float, list[RespostaDrive]]] = {}
+
 class ServicoDrive:
 
     def __init__(self):
@@ -54,8 +57,8 @@ class ServicoDrive:
 
         parametros = {
             "q": consulta,
-            "fields": "files(id,name,mimeType)",
-            "pageSize": 200,
+            "fields": "nextPageToken, files(id,name,mimeType)",
+            "pageSize": 100,
         }
 
         return f"https://www.googleapis.com/drive/v3/files?{urlencode(parametros)}"
@@ -93,49 +96,90 @@ class ServicoDrive:
         token: str,
         id_pasta: str
     ) -> list[RespostaDrive]:
+        import time
 
-        url = self._montar_url_busca_fotos(id_pasta)
+        # Configuracao do Cache (30 minutos)
+        agora = time.time()
+        if id_pasta in _CACHE_GALERIAS:
+            tempo_salvo, fotos_salvas = _CACHE_GALERIAS[id_pasta]
+            if agora - tempo_salvo < 1800:
+                return fotos_salvas
 
-        requisicao = Request(url)
-        requisicao.add_header("Authorization", f"Bearer {token}")
-        requisicao.add_header("Accept", "application/json")
-
-        try:
-            with urlopen(requisicao, timeout=10) as resposta:
-                corpo = resposta.read().decode("utf-8")
-
-        except (HTTPError, URLError) as erro:
-            raise RuntimeError(
-                "Falha ao buscar fotos no Google Drive"
-            ) from erro
-
-        dados = json.loads(corpo)
-        arquivos = dados.get("files", [])
-
+        url_base = self._montar_url_busca_fotos(id_pasta)
+        url_busca = url_base
         fotos = []
 
-        for arquivo in arquivos:
-            id_arquivo = arquivo.get("id")
+        while url_busca:
+            requisicao = Request(url_busca)
+            requisicao.add_header("Authorization", f"Bearer {token}")
+            requisicao.add_header("Accept", "application/json")
 
-            if not id_arquivo:
-                continue
+            try:
+                with urlopen(requisicao, timeout=10) as resposta:
+                    corpo = resposta.read().decode("utf-8")
 
-            fotos.append(
-                RespostaDrive(
-                    id=id_arquivo,
-                    nome=arquivo.get("name", ""),
-                    url_visualizacao=(
-                        self._montar_url_visualizacao(id_arquivo)
-                    ),
+            except (HTTPError, URLError) as erro:
+                raise RuntimeError(
+                    "Falha ao buscar fotos no Google Drive"
+                ) from erro
+
+            dados = json.loads(corpo)
+            arquivos = dados.get("files", [])
+
+            for arquivo in arquivos:
+                id_arquivo = arquivo.get("id")
+
+                if not id_arquivo:
+                    continue
+
+                fotos.append(
+                    RespostaDrive(
+                        id=id_arquivo,
+                        nome=arquivo.get("name", ""),
+                        url_visualizacao=(
+                            self._montar_url_visualizacao(id_arquivo)
+                        ),
+                    )
                 )
-            )
 
+            next_token = dados.get("nextPageToken")
+            if next_token:
+                url_busca = f"{url_base}&pageToken={next_token}"
+            else:
+                url_busca = None
+
+        _CACHE_GALERIAS[id_pasta] = (agora, fotos)
         return fotos
+
+    @staticmethod
+    def limpar_cache():
+        """Limpa o cache em memória das galerias do Drive."""
+        _CACHE_GALERIAS.clear()
+
+    @staticmethod
+    def _extrair_id_pasta(valor: str) -> str | None:
+        """
+        Extrai o ID da pasta do Google Drive a partir de uma URL ou do proprio ID.
+        Suporta formatos:
+        - https://drive.google.com/drive/folders/1a2b3c4d5e...
+        - https://drive.google.com/drive/u/0/folders/1a2b3c4d5e...
+        - ID alfanumerico direto (ex.: 1a2b3c4d5e...)
+        """
+        import re
+        valor = (valor or "").strip()
+        match_url = re.search(r"folders/([a-zA-Z0-9_-]+)", valor)
+        if match_url:
+            return match_url.group(1)
+        if re.match(r"^[a-zA-Z0-9_-]{20,}$", valor) and not valor.startswith("http"):
+            return valor
+        return None
 
     def listar_fotos(self, nome_pasta: str) -> list[RespostaDrive]:
         token = self._obter_token_valido()
 
-        id_pasta = self._buscar_pasta_id(token, nome_pasta)
+        id_pasta = self._extrair_id_pasta(nome_pasta)
+        if not id_pasta:
+            id_pasta = self._buscar_pasta_id(token, nome_pasta)
 
         if not id_pasta:
             raise ValueError("Pasta do Google Drive não encontrada")

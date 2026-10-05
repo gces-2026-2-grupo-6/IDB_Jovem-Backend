@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from src.evento.controller import (
     criar_evento, buscar_todos_evento, buscar_evento_id,
     atualizar_evento, deletar_evento, pesquisar_eventos, 
-    listar_galeria_evento, get_servico,
+    listar_galeria_evento, listar_todas_galerias, get_servico,
 )
 
 
@@ -121,4 +121,53 @@ class TestEventoController:
 
         with pytest.raises(HTTPException) as exc:
             listar_galeria_evento(evento_id=1, servico=mock_servico)
+        assert exc.value.status_code == 502
+
+    @patch("src.evento.controller.ServicoDrive")
+    def test_listar_todas_galerias_sucesso(self, mock_drive_class):
+        mock_servico = MagicMock()
+        ev1 = MagicMock()
+        ev1.evento_id = 1
+        ev1.nome = "Evento 1"
+        ev1.nome_local = "Local 1"
+        ev1.link_galeria = "Pasta 1"
+
+        ev2 = MagicMock()
+        ev2.evento_id = 2
+        ev2.nome = "Evento 2"
+        ev2.link_galeria = None
+
+        ev3 = MagicMock()
+        ev3.evento_id = 3
+        ev3.nome = "Evento 3"
+        ev3.nome_local = None
+        ev3.link_galeria = "Pasta 3"
+
+        mock_servico.listar_evento.return_value = [ev1, ev2, ev3]
+
+        mock_drive = MagicMock()
+        foto_mock = MagicMock()
+        foto_mock.id = "img1"
+        foto_mock.url_visualizacao = "http://proxy/img1"
+
+        def mock_listar_fotos(link):
+            if link == "Pasta 1":
+                return [foto_mock]
+            raise RuntimeError("Erro ao buscar pasta 3")
+
+        mock_drive.listar_fotos.side_effect = mock_listar_fotos
+        mock_drive_class.return_value = mock_drive
+
+        resultado = listar_todas_galerias(servico=mock_servico)
+        assert len(resultado) == 1
+        assert resultado[0].id == "img1"
+        assert resultado[0].event == "Evento 1"
+        assert resultado[0].location == "Local 1"
+
+    def test_listar_todas_galerias_runtime_error(self):
+        mock_servico = MagicMock()
+        mock_servico.listar_evento.side_effect = RuntimeError("Erro no banco")
+
+        with pytest.raises(HTTPException) as exc:
+            listar_todas_galerias(servico=mock_servico)
         assert exc.value.status_code == 502

@@ -5,6 +5,9 @@ from src.drive.service import ServicoDrive
 
 
 class TestServicoDrive:
+    def setup_method(self):
+        ServicoDrive.limpar_cache()
+
     @patch.dict("os.environ", {"GOOGLE_REFRESH_TOKEN": ""})
     @patch("src.drive.service.ServicoAuth")
     def test_obter_token_sem_refresh(self, mock_auth_class):
@@ -201,3 +204,79 @@ class TestServicoDrive:
 
         with pytest.raises(ValueError, match="Pasta do Google Drive não encontrada"):
             servico.listar_fotos("Inexistente")
+
+    @patch("src.drive.service.ServicoAuth")
+    def test_extrair_id_pasta(self, mock_auth_class):
+        servico = ServicoDrive()
+        url = "https://drive.google.com/drive/folders/1ABC_xyz-1234567890abcdef"
+        assert servico._extrair_id_pasta(url) == "1ABC_xyz-1234567890abcdef"
+
+        direto = "1ABC_xyz-1234567890abcdef"
+        assert servico._extrair_id_pasta(direto) == "1ABC_xyz-1234567890abcdef"
+
+        assert servico._extrair_id_pasta("Pasta Com Nome") is None
+        assert servico._extrair_id_pasta("") is None
+
+    @patch("src.drive.service.ServicoAuth")
+    def test_listar_fotos_com_url_do_drive(self, mock_auth_class):
+        servico = ServicoDrive()
+        servico._obter_token_valido = MagicMock(return_value="token")
+        servico._buscar_pasta_id = MagicMock()
+        servico._buscar_fotos_drive = MagicMock(return_value=[])
+
+        url = "https://drive.google.com/drive/folders/1ABC_xyz-1234567890abcdef"
+        servico.listar_fotos(url)
+        # Nao deve chamar _buscar_pasta_id pois o id foi extraido da URL
+        servico._buscar_pasta_id.assert_not_called()
+        servico._buscar_fotos_drive.assert_called_once_with("token", "1ABC_xyz-1234567890abcdef")
+
+    @patch("src.drive.service.urlopen")
+    @patch("src.drive.service.ServicoAuth")
+    def test_buscar_fotos_drive_cache(self, mock_auth_class, mock_urlopen):
+        import json
+        mock_resposta = MagicMock()
+        mock_resposta.read.return_value = json.dumps({
+            "files": [{"id": "f1", "name": "foto1.jpg"}]
+        }).encode("utf-8")
+        mock_resposta.__enter__ = lambda s: s
+        mock_resposta.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resposta
+
+        servico = ServicoDrive()
+        res1 = servico._buscar_fotos_drive("token", "folder-cache")
+        assert len(res1) == 1
+        assert mock_urlopen.call_count == 1
+
+        # Segunda chamada deve vir do cache sem chamar urlopen
+        res2 = servico._buscar_fotos_drive("token", "folder-cache")
+        assert len(res2) == 1
+        assert mock_urlopen.call_count == 1
+
+    @patch("src.drive.service.urlopen")
+    @patch("src.drive.service.ServicoAuth")
+    def test_buscar_fotos_drive_paginacao(self, mock_auth_class, mock_urlopen):
+        import json
+        resp1 = MagicMock()
+        resp1.read.return_value = json.dumps({
+            "files": [{"id": "p1", "name": "pagina1.jpg"}],
+            "nextPageToken": "token-pag-2"
+        }).encode("utf-8")
+        resp1.__enter__ = lambda s: s
+        resp1.__exit__ = MagicMock(return_value=False)
+
+        resp2 = MagicMock()
+        resp2.read.return_value = json.dumps({
+            "files": [{"id": "p2", "name": "pagina2.jpg"}]
+        }).encode("utf-8")
+        resp2.__enter__ = lambda s: s
+        resp2.__exit__ = MagicMock(return_value=False)
+
+        mock_urlopen.side_effect = [resp1, resp2]
+
+        servico = ServicoDrive()
+        resultado = servico._buscar_fotos_drive("token", "folder-pag")
+        assert len(resultado) == 2
+        assert resultado[0].id == "p1"
+        assert resultado[1].id == "p2"
+        assert mock_urlopen.call_count == 2
+
