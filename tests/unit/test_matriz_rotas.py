@@ -80,6 +80,7 @@ MATRIZ = {
     ("PATCH", "/voluntarios/{voluntario_id}/evento/{evento_id}/status"): SETOR_INSCRICOES,
     ("DELETE", "/voluntarios/{voluntario_id}"): SUPERADMIN,
     ("GET", "/formulario/eventos/{evento_id}/inscricoes"): SETOR_INSCRICOES,
+    ("GET", "/formulario/eventos/{evento_id}/participantes"): SETOR_INSCRICOES,
     # Lideres
     ("GET", "/lider/"): PUBLICA,
     ("GET", "/lider/atuais"): PUBLICA,

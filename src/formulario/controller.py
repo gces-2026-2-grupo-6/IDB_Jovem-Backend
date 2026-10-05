@@ -4,7 +4,10 @@ from sqlalchemy.orm import Session
 from src.database import obter_banco
 from src.formulario.repository import RepositorioFormulario
 from src.formulario.service import ServicoFormulario
-from src.formulario.schema import RespostaInscricaoFormulario
+from src.formulario.schema import (
+    RespostaInscricaoFormulario,
+    RespostaInscricaoParticipante,
+)
 from src.security import verificar_permissao_setor, SETOR_INSCRICOES
 
 
@@ -28,6 +31,27 @@ def listar_inscricoes(
 ):
     try:
         return servico.listar_inscricoes(db, evento_id)
+
+    except ValueError as erro:
+        raise HTTPException(status_code=404, detail=str(erro)) from erro
+
+    except RuntimeError as erro:
+        raise HTTPException(status_code=502, detail=str(erro)) from erro
+
+
+@router.get(
+    "/eventos/{evento_id}/participantes",
+    response_model=list[RespostaInscricaoParticipante],
+)
+def listar_participantes(
+    evento_id: int,
+    db: Session = Depends(obter_banco),
+    servico: ServicoFormulario = Depends(get_servico),
+    _: dict = Depends(verificar_permissao_setor(SETOR_INSCRICOES)),
+):
+    """Inscritos no formulario de participantes, separado do voluntariado (US09)."""
+    try:
+        return servico.listar_participantes(db, evento_id)
 
     except ValueError as erro:
         raise HTTPException(status_code=404, detail=str(erro)) from erro
