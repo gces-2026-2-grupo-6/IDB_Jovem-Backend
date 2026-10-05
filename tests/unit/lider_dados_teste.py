@@ -37,6 +37,7 @@ def diretor_anterior_brasileiro(**overrides) -> Lider:
         ordem=10,
         regiao="Nordeste",
         mini_biografia="Diretor nacional entre 2015 e 2020.",
+        gestao="2015 – 2020",
         redes_sociais={
             "instagram": "https://instagram.com/carlos.pereira.exemplo",
         },

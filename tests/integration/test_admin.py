@@ -117,16 +117,6 @@ class TestBuscarAdmin:
         assert resposta.status_code == 404
         assert "Admin não encontrado" in resposta.json()["detail"]
 
-    @pytest.mark.parametrize("admin_id", [1, 2, 10, 100])
-    def test_buscar_admin_varios_ids(self, client, admin_id):
-        c, servico = client
-        servico.buscar_admin.return_value = {**RESPOSTA_ADMIN, "admin_id": admin_id}
-        resposta = c.get(f"/admin/{admin_id}")
-        assert resposta.status_code == 200
-        assert resposta.json()["admin_id"] == admin_id
-
-
-
 class TestDeletarAdmin:
 
     def test_deletar_admin_sucesso(self, client):

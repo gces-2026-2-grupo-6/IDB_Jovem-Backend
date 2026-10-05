@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.database import obter_banco
-from src.security import verificar_roles
+from src.security import verificar_roles, verificar_permissao_setor, SETOR_INSCRICOES
 from src.voluntario.repository import RepositorioVoluntario
 from src.voluntario.service import ServicoVoluntario
 from src.voluntario.schema import (
@@ -24,7 +24,7 @@ def get_servico(db: Session = Depends(obter_banco)):
 def criar_voluntario(
     solicitacao: SolicitacaoVoluntario,
     servico: ServicoVoluntario = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_permissao_setor(SETOR_INSCRICOES)),
 ):
     try:
         return servico.criar_voluntario(solicitacao)
@@ -36,7 +36,7 @@ def criar_voluntario(
 @router.get("/", response_model=list[RespostaVoluntario])
 def listar_voluntarios(
     servico: ServicoVoluntario = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_permissao_setor(SETOR_INSCRICOES)),
 ):
     return servico.listar_voluntarios()
 
@@ -45,7 +45,7 @@ def listar_voluntarios(
 def buscar_voluntario(
     voluntario_id: int,
     servico: ServicoVoluntario = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_permissao_setor(SETOR_INSCRICOES)),
 ):
     try:
         return servico.buscar_voluntario(voluntario_id)
@@ -58,7 +58,7 @@ def buscar_voluntario(
 def deletar_voluntario(
     voluntario_id: int,
     servico: ServicoVoluntario = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_roles(["superadmin"])),
 ):
     try:
         servico.deletar_voluntario(voluntario_id)
@@ -71,7 +71,7 @@ def deletar_voluntario(
 def listar_voluntarios_evento(
     evento_id: int,
     servico: ServicoVoluntario = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_permissao_setor(SETOR_INSCRICOES)),
 ):
     return servico.listar_voluntarios_evento(evento_id)
 
@@ -82,7 +82,7 @@ def atualizar_status_voluntario(
     evento_id: int,
     novo_status: str,
     servico: ServicoVoluntario = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_permissao_setor(SETOR_INSCRICOES)),
 ):
     try:
         return servico.atualizar_status(voluntario_id, evento_id, novo_status)
@@ -95,6 +95,6 @@ def atualizar_status_voluntario(
 def contar_voluntarios_evento(
     evento_id: int,
     servico: ServicoVoluntario = Depends(get_servico),
-    _: dict = Depends(verificar_roles(["admin", "superadmin"])),
+    _: dict = Depends(verificar_permissao_setor(SETOR_INSCRICOES)),
 ):
     return servico.contar_voluntarios_evento(evento_id)

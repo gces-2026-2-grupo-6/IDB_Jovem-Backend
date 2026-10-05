@@ -98,11 +98,27 @@ async def obter_usuario_atual(
             detail=f"Falha ao validar o token do Keycloak: {erro}",
         ) from erro
 
+def _papeis_do_token(usuario: dict) -> set[str]:
+    """Extrai os papeis de realm do token; formato inesperado vale como nenhum papel.
+
+    O campo precisa ser uma colecao de strings. Como string, o operador "in"
+    compararia substrings e "admin" casaria dentro de "superadmin". Como None,
+    ou com realm_access fora do formato, a leitura levantaria excecao e a rota
+    responderia 500 em vez de 403.
+    """
+    acesso_realm = usuario.get("realm_access")
+    if not isinstance(acesso_realm, dict):
+        return set()
+    roles = acesso_realm.get("roles")
+    if not isinstance(roles, (list, tuple, set)):
+        return set()
+    return {papel for papel in roles if isinstance(papel, str)}
+
+
 def verificar_roles(roles_exigidas: list[str]):
     """Fabrica de dependencias para verificar multiplos papeis."""
     def dependencia(usuario: dict = Depends(obter_usuario_atual)):
-        acesso_realm = usuario.get("realm_access", {})
-        roles_usuario = acesso_realm.get("roles", [])
+        roles_usuario = _papeis_do_token(usuario)
 
         if not any(role in roles_usuario for role in roles_exigidas):
             raise HTTPException(
@@ -115,3 +131,52 @@ def verificar_roles(roles_exigidas: list[str]):
         return usuario
 
     return dependencia
+
+
+SETOR_EVENTOS = "eventos"
+SETOR_PRODUTOS = "produtos"
+SETOR_INSCRICOES = "inscricoes"
+
+PAPEL_DO_SETOR = {
+    SETOR_EVENTOS: "admin-eventos",
+    SETOR_PRODUTOS: "admin-produtos",
+    SETOR_INSCRICOES: "admin-inscricoes",
+}
+
+TODOS_PAPEIS_SETORES = set(PAPEL_DO_SETOR.values())
+
+
+def verificar_permissao_setor(setor_alvo: str):
+    """
+    Fabrica de dependencias para verificar permissao de administrador por setor (US03 / RF01).
+    - superadmin: acesso total a todos os setores.
+    - admin:
+        - Se possuir papeis especificos de setor, exige o papel correspondente ao setor alvo.
+        - Se nao possuir nenhum papel especifico de setor, mantem acesso geral (retrocompatibilidade).
+    - Outros: HTTP 403 Forbidden.
+    """
+    papel_esperado = PAPEL_DO_SETOR.get(setor_alvo)
+
+    def dependencia(usuario: dict = Depends(obter_usuario_atual)):
+        roles_usuario = _papeis_do_token(usuario)
+
+        if "superadmin" in roles_usuario:
+            return usuario
+
+        if "admin" not in roles_usuario:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Acesso negado. Requer permissão de administrador para o setor '{setor_alvo}'.",
+            )
+
+        papeis_de_setor = roles_usuario.intersection(TODOS_PAPEIS_SETORES)
+        if papeis_de_setor and papel_esperado not in roles_usuario:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Acesso negado ao setor '{setor_alvo}'. Requer o papel '{papel_esperado}' ou superadmin.",
+            )
+
+        return usuario
+
+    return dependencia
+

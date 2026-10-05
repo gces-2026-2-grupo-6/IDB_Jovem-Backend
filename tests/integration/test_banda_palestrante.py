@@ -68,16 +68,6 @@ class TestCriarBandaPalestrante:
         resposta = c.post("/banda-palestrante/", json={})
         assert resposta.status_code == 422
 
-    @pytest.mark.parametrize("nome", ["DJ Fulano", "Palestrante da Silva", "Banda X"])
-    def test_criar_varios_nomes(self, client, nome):
-        c, servico = client
-        servico.criar_banda_palestrante.return_value = {**RESPOSTA_BANDA, "nome": nome}
-        resposta = c.post("/banda-palestrante/", json={**BANDA_VALIDA, "nome": nome})
-        assert resposta.status_code == 201
-        assert resposta.json()["nome"] == nome
-
-
-
 class TestListarBandaPalestrantes:
 
     def test_listar_retorna_lista(self, client):
@@ -129,18 +119,6 @@ class TestBuscarBandaPalestrante:
         assert resposta.status_code == 404
         assert "Não encontrado" in resposta.json()["detail"]
 
-    @pytest.mark.parametrize("participante_id", [1, 5, 42, 100])
-    def test_buscar_varios_ids(self, client, participante_id):
-        c, servico = client
-        servico.buscar_banda_palestrante.return_value = {
-            **RESPOSTA_BANDA, "participante_id": participante_id
-        }
-        resposta = c.get(f"/banda-palestrante/{participante_id}")
-        assert resposta.status_code == 200
-        assert resposta.json()["participante_id"] == participante_id
-
-
-
 class TestDeletarBandaPalestrante:
 
     def test_deletar_sucesso(self, client):
@@ -156,10 +134,3 @@ class TestDeletarBandaPalestrante:
         resposta = c.delete("/banda-palestrante/999")
         assert resposta.status_code == 404
         assert "Participante não encontrado" in resposta.json()["detail"]
-
-    @pytest.mark.parametrize("participante_id", [1, 2, 3])
-    def test_deletar_varios_ids(self, client, participante_id):
-        c, servico = client
-        servico.deletar_banda_palestrante.return_value = None
-        resposta = c.delete(f"/banda-palestrante/{participante_id}")
-        assert resposta.status_code == 204

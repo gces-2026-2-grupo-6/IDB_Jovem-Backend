@@ -12,8 +12,10 @@ class BaseLider(BaseModel):
     mini_biografia: str | None = None
     # Objeto JSON no formato {"rede": "link"}, ex.: {"instagram": "https://..."}.
     redes_sociais: dict[str, str] | None = None
+    # Período exibido no card da galeria de diretores, ex.: "2020 – 2023".
+    gestao: str | None = None
 
-    @field_validator("regiao", "mini_biografia", mode="before")
+    @field_validator("regiao", "mini_biografia", "gestao", mode="before")
     @classmethod
     def _texto_vazio_para_nulo(cls, valor):
         if isinstance(valor, str):

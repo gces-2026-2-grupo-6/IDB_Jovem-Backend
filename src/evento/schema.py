@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from enum import Enum
 from pydantic import BaseModel, field_validator
 
@@ -22,7 +22,9 @@ class BaseEvento(BaseModel):
     data_fim: datetime
     link_galeria: str | None = None
     formulario_link: str | None = None
+    formulario_participante_link: str | None = None
     link_imagem: str | None = None
+    datas: list[date] | None = None
 
 class SolicitacaoEvento(BaseEvento):
     """"
