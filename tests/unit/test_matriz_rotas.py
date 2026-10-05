@@ -82,9 +82,12 @@ MATRIZ = {
     ("GET", "/formulario/eventos/{evento_id}/inscricoes"): SETOR_INSCRICOES,
     # Lideres
     ("GET", "/lider/"): PUBLICA,
+    ("GET", "/lider/atuais"): PUBLICA,
+    ("GET", "/lider/diretores-anteriores"): PUBLICA,
     ("GET", "/lider/{lider_id}"): PUBLICA,
-    ("POST", "/lider/"): ADMIN_OU_SUPERADMIN,
-    ("PUT", "/lider/{lider_id}"): ADMIN_OU_SUPERADMIN,
+    # US05: cadastro e edicao de lideres restritos a superadministradora.
+    ("POST", "/lider/"): SUPERADMIN,
+    ("PUT", "/lider/{lider_id}"): SUPERADMIN,
     ("DELETE", "/lider/{lider_id}"): SUPERADMIN,
     # Midia e mapa
     ("GET", "/galeria/fotos"): ADMIN_OU_SUPERADMIN,
