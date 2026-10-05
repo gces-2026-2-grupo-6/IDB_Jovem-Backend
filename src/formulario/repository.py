@@ -6,8 +6,12 @@ from urllib.request import Request, urlopen
 from sqlalchemy.orm import Session
 
 from src.evento.model import Evento
-from src.formulario.schema import RespostaInscricaoFormulario
+from src.formulario.schema import (
+    RespostaInscricaoFormulario,
+    RespostaInscricaoParticipante,
+)
 from src.auth.service import ServicoAuth
+from src.participante.models import Inscricao, Participante
 from src.voluntario.models import Trabalha, Voluntario
 
 STATUS_PENDENTE = "pendente"
@@ -177,37 +181,132 @@ class RepositorioFormulario:
             ),
         )
 
+    def _preparar_contexto(self, db: Session, evento: Evento, link_formulario: str) -> dict:
+        """Le o formulario no Google e monta o contexto comum aos dois fluxos."""
+        token = self._obter_token_valido()
+        formulario_id = self._definir_formulario_id(link_formulario)
+
+        formulario = self._buscar_formulario(token, formulario_id)
+        respostas = self._buscar_respostas(token, formulario_id)
+        mapa_perguntas = self._mapear_perguntas(formulario)
+
+        return {
+            "db": db,
+            "evento": evento,
+            "formulario_id": formulario_id,
+            "id_nome": self._localizar_id_pergunta(mapa_perguntas, "Nome"),
+            "id_email": self._localizar_id_pergunta(mapa_perguntas, "Email"),
+            "respostas": respostas,
+        }
+
+    def _salvar_participante(self, db: Session, nome: str, email: str) -> Participante:
+        participante = (
+            db.query(Participante).filter(Participante.email == email).first()
+        )
+        if participante:
+            participante.nome = nome
+            db.add(participante)
+            return participante
+        participante = Participante(nome=nome, email=email)
+        db.add(participante)
+        db.flush()
+        return participante
+
+    def _garantir_inscricao(
+        self,
+        db: Session,
+        participante_id: int,
+        evento_id: int,
+        resposta_id: str,
+    ) -> Inscricao:
+        inscricao = (
+            db.query(Inscricao)
+            .filter(
+                Inscricao.participante_id == participante_id,
+                Inscricao.evento_id == evento_id,
+            )
+            .first()
+        )
+        if inscricao:
+            inscricao.resposta_id = resposta_id
+            db.add(inscricao)
+            return inscricao
+        inscricao = Inscricao(
+            participante_id=participante_id,
+            evento_id=evento_id,
+            resposta_id=resposta_id,
+        )
+        db.add(inscricao)
+        return inscricao
+
+    def _montar_participante(
+        self,
+        contexto: dict,
+        resposta: dict,
+    ) -> RespostaInscricaoParticipante | None:
+        resposta_id = resposta.get("responseId", "")
+        respostas_campos = resposta.get("answers", {})
+        nome = self._extrair_texto_resposta(respostas_campos, contexto["id_nome"])
+        email = self._extrair_texto_resposta(respostas_campos, contexto["id_email"])
+        if not nome or not email or not resposta_id:
+            return None
+        participante = self._salvar_participante(contexto["db"], nome, email)
+        self._garantir_inscricao(
+            contexto["db"],
+            participante.participante_id,
+            contexto["evento"].evento_id,
+            resposta_id,
+        )
+        return RespostaInscricaoParticipante(
+            evento_id=contexto["evento"].evento_id,
+            participante_id=participante.participante_id,
+            nome=participante.nome,
+            email=participante.email,
+            resposta_id=resposta_id,
+            link_resposta=self._montar_link_resposta(
+                contexto["formulario_id"],
+                resposta_id,
+            ),
+        )
+
     def listar_inscricoes(
         self,
         db: Session,
         evento_id: int,
     ) -> list[RespostaInscricaoFormulario]:
-        token = self._obter_token_valido()
-        
+        """Inscritos no formulario de voluntariado do evento."""
         evento = self._buscar_evento(db, evento_id)
         if not evento.formulario_link:
             raise ValueError("Evento sem formulario configurado")
 
-        formulario_id = self._definir_formulario_id(evento.formulario_link)
-
-        formulario = self._buscar_formulario(token, formulario_id)
-        respostas = self._buscar_respostas(token, formulario_id)
-        mapa_perguntas = self._mapear_perguntas(formulario)
-        id_nome = self._localizar_id_pergunta(mapa_perguntas, "Nome")
-        id_email = self._localizar_id_pergunta(mapa_perguntas, "Email")
-
-        contexto = {
-            "db": db,
-            "evento": evento,
-            "formulario_id": formulario_id,
-            "id_nome": id_nome,
-            "id_email": id_email,
-        }
+        contexto = self._preparar_contexto(db, evento, evento.formulario_link)
 
         lista: list[RespostaInscricaoFormulario] = []
-        for resposta in respostas:
+        for resposta in contexto["respostas"]:
             inscricao = self._montar_inscricao(contexto, resposta)
             if inscricao:
                 lista.append(inscricao)
+        db.commit()
+        return lista
+
+    def listar_participantes(
+        self,
+        db: Session,
+        evento_id: int,
+    ) -> list[RespostaInscricaoParticipante]:
+        """Inscritos no formulario de participantes do evento (US09)."""
+        evento = self._buscar_evento(db, evento_id)
+        if not evento.formulario_participante_link:
+            raise ValueError("Evento sem formulario de participantes configurado")
+
+        contexto = self._preparar_contexto(
+            db, evento, evento.formulario_participante_link
+        )
+
+        lista: list[RespostaInscricaoParticipante] = []
+        for resposta in contexto["respostas"]:
+            participante = self._montar_participante(contexto, resposta)
+            if participante:
+                lista.append(participante)
         db.commit()
         return lista
