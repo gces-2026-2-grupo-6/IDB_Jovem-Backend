@@ -43,3 +43,10 @@ class RespostaEvento(BaseEvento):
     @classmethod
     def _link_imagem_para_proxy(cls, valor: str | None) -> str | None:
         return converter_link_para_proxy(valor)
+
+
+class RespostaItemGaleria(BaseModel):
+    id: str
+    image: str
+    event: str
+    location: str
