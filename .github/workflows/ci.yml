@@ -10,7 +10,6 @@ jobs:
   lint:
     name: Lint (Pylint)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -21,14 +20,12 @@ jobs:
       - name: Instalar dependências
         run: pip install -r requirements.txt
       - name: Rodar Pylint
-        run: pylint src/ --fail-under=6.0 --disable=C0114,C0115,C0116,E0401,R0801 --ignore=migrations
+        run: pylint src/ --fail-under=7.5 --disable=C0114,C0115,C0116,E0401,R0801 --ignore=migrations
 
   test:
     name: Testes & Coverage
     runs-on: ubuntu-latest
     needs: lint
-    if: ${{ !cancelled() }}
-    continue-on-error: true
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -52,6 +49,7 @@ jobs:
       - name: Rodar Pytest com Coverage
         run: pytest
       - name: Publicar relatório de Coverage
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
@@ -61,8 +59,6 @@ jobs:
     name: Build Docker
     runs-on: ubuntu-latest
     needs: test
-    if: ${{ !cancelled() }}
-    continue-on-error: true
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -89,8 +85,6 @@ jobs:
     name: Testes de Endpoint (Container)
     runs-on: ubuntu-latest
     needs: build
-    if: ${{ !cancelled() }}
-    continue-on-error: true
     services:
       postgres:
         image: postgres:15
