@@ -19,3 +19,4 @@ class Evento(Base):
     formulario_link      = Column(Text, nullable=True)
     link_imagem          = Column(Text, nullable=True)
     datas                = Column(ARRAY(Date), nullable=True)
+    formulario_participante_link = Column(Text, nullable=True)
