@@ -132,10 +132,30 @@ class ServicoDrive:
 
         return fotos
 
+    @staticmethod
+    def _extrair_id_pasta(valor: str) -> str | None:
+        """
+        Extrai o ID da pasta do Google Drive a partir de uma URL ou do proprio ID.
+        Suporta formatos:
+        - https://drive.google.com/drive/folders/1a2b3c4d5e...
+        - https://drive.google.com/drive/u/0/folders/1a2b3c4d5e...
+        - ID alfanumerico direto (ex.: 1a2b3c4d5e...)
+        """
+        import re
+        valor = (valor or "").strip()
+        match_url = re.search(r"folders/([a-zA-Z0-9_-]+)", valor)
+        if match_url:
+            return match_url.group(1)
+        if re.match(r"^[a-zA-Z0-9_-]{20,}$", valor) and not valor.startswith("http"):
+            return valor
+        return None
+
     def listar_fotos(self, nome_pasta: str) -> list[RespostaDrive]:
         token = self._obter_token_valido()
 
-        id_pasta = self._buscar_pasta_id(token, nome_pasta)
+        id_pasta = self._extrair_id_pasta(nome_pasta)
+        if not id_pasta:
+            id_pasta = self._buscar_pasta_id(token, nome_pasta)
 
         if not id_pasta:
             raise ValueError("Pasta do Google Drive não encontrada")
