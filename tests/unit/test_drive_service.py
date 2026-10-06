@@ -280,3 +280,43 @@ class TestServicoDrive:
         assert resultado[1].id == "p2"
         assert mock_urlopen.call_count == 2
 
+    @patch("src.drive.service.ServicoAuth")
+    def test_obter_imagem_com_cache_hit(self, mock_auth_class):
+        import base64
+        from src.drive.model import ImagemCache
+
+        cache = ImagemCache(
+            file_id="file-id-123",
+            content_type="image/png",
+            conteudo_base64=base64.b64encode(b"bytes-em-cache").decode("ascii"),
+        )
+        banco = MagicMock()
+        banco.get.return_value = cache
+
+        servico = ServicoDrive()
+        servico.baixar_imagem = MagicMock()
+
+        content_type, conteudo = servico.obter_imagem_com_cache(banco, "file-id-123")
+
+        assert content_type == "image/png"
+        assert conteudo == b"bytes-em-cache"
+        servico.baixar_imagem.assert_not_called()
+        banco.add.assert_not_called()
+
+    @patch("src.drive.service.ServicoAuth")
+    def test_obter_imagem_com_cache_miss_baixa_e_grava(self, mock_auth_class):
+        banco = MagicMock()
+        banco.get.return_value = None
+
+        servico = ServicoDrive()
+        servico.baixar_imagem = MagicMock(
+            return_value=("image/jpeg", iter([b"abc", b"def"]))
+        )
+
+        content_type, conteudo = servico.obter_imagem_com_cache(banco, "novo-id")
+
+        assert content_type == "image/jpeg"
+        assert conteudo == b"abcdef"
+        servico.baixar_imagem.assert_called_once_with("novo-id")
+        banco.add.assert_called_once()
+        banco.commit.assert_called_once()

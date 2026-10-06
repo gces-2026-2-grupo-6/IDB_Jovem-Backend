@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, Query, Depends, Response
+from sqlalchemy.orm import Session
 
+from src.database import obter_banco
 from src.drive.service import ServicoDrive
 from src.drive.schema import RespostaDrive
 from src.security import verificar_roles
@@ -11,16 +12,17 @@ router_imagem = APIRouter(prefix="/drive", tags=["Imagens do Google Drive"])
 
 
 @router_imagem.get("/imagem/{file_id}")
-def proxy_imagem(file_id: str):
+def proxy_imagem(file_id: str, banco: Session = Depends(obter_banco)):
     """
-    Proxy publico de imagens do Google Drive. Baixa o arquivo usando as
-    credenciais do servidor e devolve os bytes com o Content-Type correto e
-    cache de 24h, evitando o hotlink direto ao Drive (que falha em rajadas).
+    Proxy publico de imagens do Google Drive com cache no banco. No primeiro
+    acesso baixa o arquivo do Drive e guarda em base64; nas requisicoes
+    seguintes serve direto do banco, sem voltar ao Drive. Devolve os bytes com
+    o Content-Type correto e cache de 24h no cliente.
     """
     servico = ServicoDrive()
 
     try:
-        content_type, conteudo = servico.baixar_imagem(file_id)
+        content_type, conteudo = servico.obter_imagem_com_cache(banco, file_id)
 
     except ValueError as erro:
         raise HTTPException(status_code=404, detail=str(erro)) from erro
@@ -28,8 +30,8 @@ def proxy_imagem(file_id: str):
     except RuntimeError as erro:
         raise HTTPException(status_code=502, detail=str(erro)) from erro
 
-    return StreamingResponse(
-        conteudo,
+    return Response(
+        content=conteudo,
         media_type=content_type,
         headers={"Cache-Control": "public, max-age=86400"},
     )

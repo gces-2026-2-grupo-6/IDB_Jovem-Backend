@@ -1,11 +1,16 @@
 import os
 import json
+import base64
 from typing import Iterator
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
 from src.drive.schema import RespostaDrive
+from src.drive.model import ImagemCache
 from src.drive.utils import montar_url_proxy
 from src.auth.service import ServicoAuth
 
@@ -232,3 +237,38 @@ class ServicoDrive:
                 resposta.close()
 
         return content_type, gerar_blocos()
+
+    def obter_imagem_com_cache(
+        self,
+        banco: Session,
+        file_id: str,
+    ) -> tuple[str, bytes]:
+        """
+        Devolve (content_type, bytes) de uma imagem do Drive servindo do cache
+        no banco quando disponivel. No primeiro acesso baixa do Drive, grava o
+        conteudo em base64 na tabela imagem_cache e passa a servir do banco nas
+        proximas requisicoes.
+
+        Lanca ValueError (404) e RuntimeError (502) iguais a baixar_imagem.
+        """
+        cache = banco.get(ImagemCache, file_id)
+        if cache is not None:
+            return cache.content_type, base64.b64decode(cache.conteudo_base64)
+
+        content_type, gerador = self.baixar_imagem(file_id)
+        conteudo = b"".join(gerador)
+
+        registro = ImagemCache(
+            file_id=file_id,
+            content_type=content_type,
+            conteudo_base64=base64.b64encode(conteudo).decode("ascii"),
+        )
+        banco.add(registro)
+        try:
+            banco.commit()
+        except IntegrityError:
+            # Outra requisicao gravou o mesmo file_id em paralelo: ignoramos
+            # o conflito e seguimos com os bytes ja baixados.
+            banco.rollback()
+
+        return content_type, conteudo
