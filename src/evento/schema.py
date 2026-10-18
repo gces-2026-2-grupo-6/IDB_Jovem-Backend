@@ -16,8 +16,12 @@ class BaseEvento(BaseModel):
     nome: str
     tipo_evento: TipoEvento | None = None
     descricao: str | None = None
-    local_latitude: float
-    local_longitude: float
+    # As colunas aceitam nulo no banco. Exigir os dois numeros aqui fazia um
+    # unico evento sem coordenadas derrubar a listagem inteira com erro 500,
+    # porque a falha e na serializacao da resposta e vale para todos os itens.
+    # A criacao continua exigindo as coordenadas em SolicitacaoEvento.
+    local_latitude: float | None = None
+    local_longitude: float | None = None
     data_inicio: datetime
     data_fim: datetime
     link_galeria: str | None = None
@@ -32,6 +36,8 @@ class SolicitacaoEvento(BaseEvento):
     Herda os campos básicos de Baseevento.
     """
     tipo_evento: TipoEvento
+    local_latitude: float
+    local_longitude: float
 
 class RespostaEvento(BaseEvento):
     evento_id: int
