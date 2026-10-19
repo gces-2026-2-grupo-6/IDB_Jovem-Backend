@@ -148,7 +148,12 @@ jobs:
           docker logs backend_endpoint
           exit 1
       - name: Rodar testes de endpoint contra o container
-        run: pytest tests/endpoint/ -v -m endpoint
+        # --no-cov: o piso de cobertura do pytest.ini vale para toda invocacao
+        # do pytest. Aqui o codigo roda dentro do container, entao o processo
+        # do runner nao executa src/ e a cobertura medida e 0% — o piso
+        # derrubava o job depois de todos os testes passarem. Quem mede
+        # cobertura e o job "Testes & Coverage"; este verifica a aplicacao no ar.
+        run: pytest tests/endpoint/ -v -m endpoint --no-cov
       - name: Parar container
         if: always()
         run: docker stop backend_endpoint || true
