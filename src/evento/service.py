@@ -1,9 +1,15 @@
-from src.evento.schema import SolicitacaoEvento
+from src.evento.schema import SituacaoEvento, SolicitacaoEvento, SolicitacaoSituacaoEvento
 from src.shared.utils import validar_datas, validar_coordenadas
 from src.evento.model import Evento
 from src.evento.repository import RepositorioEvento
 from src.calendario.service import ServicoCalendario
 from src.mapa.service import ServicoMapa
+
+
+def _limpar_nova_data_fora_do_adiado(evento: Evento) -> None:
+    """US14: quem está ativo ou cancelado não carrega a data do adiamento."""
+    if evento.situacao != SituacaoEvento.ADIADO:
+        evento.nova_data = None
 
 
 class ServicoEvento:
@@ -21,6 +27,7 @@ class ServicoEvento:
         validar_datas(dados.data_inicio, dados.data_fim)
         validar_coordenadas(dados.local_latitude, dados.local_longitude)
         evento = Evento(**dados.model_dump())
+        _limpar_nova_data_fora_do_adiado(evento)
         evento = self.repositorio.salvar(evento)
 
         nome_local = self.mapa_servico.buscar_endereco_por_coordenadas(
@@ -61,6 +68,8 @@ class ServicoEvento:
         for campo, novo_valor in dados_mudanca.items():
             setattr(evento, campo, novo_valor)
 
+        _limpar_nova_data_fora_do_adiado(evento)
+
         validar_datas(evento.data_inicio, evento.data_fim)
         validar_coordenadas(evento.local_latitude, evento.local_longitude)
 
@@ -77,6 +86,29 @@ class ServicoEvento:
             )
 
         return self.repositorio.salvar(evento)
+
+    def alterar_situacao(self, evento_id: int, dados: SolicitacaoSituacaoEvento):
+        """
+        US14: marca o evento como cancelado ou adiado, ou desfaz a marcação.
+        Nada é apagado e ninguém é avisado: a comunicação com os inscritos
+        continua sendo feita pela equipe.
+        """
+        evento = self.buscar_evento(evento_id)
+        evento.situacao = dados.situacao.value
+        evento.nova_data = dados.nova_data
+        evento = self.repositorio.salvar(evento)
+
+        # A agenda do Google é um espelho: se falhar, o site já está certo e
+        # a próxima edição do evento sincroniza de novo.
+        if evento.calendario_evento_id:
+            try:
+                self.calendario.atualizar_evento(
+                    evento.calendario_evento_id, evento, evento.nome_local
+                )
+            except RuntimeError as erro:
+                print(f"Erro ao atualizar a situacao no Google Calendario: {erro}")
+
+        return evento
 
     def deletar_evento(self, evento_id: int):
         evento = self.buscar_evento(evento_id)

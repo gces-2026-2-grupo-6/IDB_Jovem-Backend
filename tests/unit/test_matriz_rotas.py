@@ -49,6 +49,8 @@ MATRIZ = {
     ("GET", "/evento/galerias/todas"): PUBLICA,
     ("POST", "/evento/"): SETOR_EVENTOS,
     ("PUT", "/evento/{evento_id}"): SETOR_EVENTOS,
+    # US14: cancelar, adiar ou desfazer e edicao do evento, nao exclusao.
+    ("PATCH", "/evento/{evento_id}/situacao"): SETOR_EVENTOS,
     ("DELETE", "/evento/{evento_id}"): SUPERADMIN,
     # Participantes do evento
     ("GET", "/evento/{evento_id}/participantes"): PUBLICA,

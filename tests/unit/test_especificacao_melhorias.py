@@ -182,14 +182,12 @@ class TestSituacaoDoEvento:
     continua no site — nao e exclusao. Hoje nao existe onde guardar isso.
     """
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_resposta_de_evento_publica_a_situacao(self):
         assert campos_encontrados(RespostaEvento, CAMPOS_SITUACAO), (
             "Sem esse campo o site nao tem como avisar que o evento foi cancelado "
             f"ou adiado. Nomes aceitos: {sorted(CAMPOS_SITUACAO)}."
         )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     @pytest.mark.parametrize("situacao", ["cancelado", "adiado"])
     def test_cadastro_aceita_marcar_o_evento(self, situacao):
         campos = campos_encontrados(SolicitacaoEvento, CAMPOS_SITUACAO)

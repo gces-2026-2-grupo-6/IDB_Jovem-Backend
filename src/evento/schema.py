@@ -12,6 +12,13 @@ class TipoEvento(str, Enum):
     OUTROS = "Outros"
 
 
+class SituacaoEvento(str, Enum):
+    """US14: o evento cancelado ou adiado continua no site, com aviso."""
+    ATIVO = "ativo"
+    CANCELADO = "cancelado"
+    ADIADO = "adiado"
+
+
 class BaseEvento(BaseModel):
     nome: str
     tipo_evento: TipoEvento | None = None
@@ -29,6 +36,9 @@ class BaseEvento(BaseModel):
     formulario_participante_link: str | None = None
     link_imagem: str | None = None
     datas: list[date] | None = None
+    situacao: SituacaoEvento = SituacaoEvento.ATIVO
+    # Só faz sentido no adiado; o serviço zera nas outras situações.
+    nova_data: datetime | None = None
 
 class SolicitacaoEvento(BaseEvento):
     """"
@@ -38,6 +48,21 @@ class SolicitacaoEvento(BaseEvento):
     tipo_evento: TipoEvento
     local_latitude: float
     local_longitude: float
+
+class SolicitacaoSituacaoEvento(BaseModel):
+    """
+    Corpo do PATCH /evento/{id}/situacao (US14). Marcar como "ativo" desfaz
+    a marcação; nova_data só vale para "adiado".
+    """
+    situacao: SituacaoEvento
+    nova_data: datetime | None = None
+
+    @model_validator(mode="after")
+    def _nova_data_so_no_adiado(self):
+        if self.situacao != SituacaoEvento.ADIADO:
+            self.nova_data = None
+        return self
+
 
 class RespostaEvento(BaseEvento):
     evento_id: int
