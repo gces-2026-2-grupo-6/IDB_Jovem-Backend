@@ -282,7 +282,6 @@ class TestCargoUnico:
         assert len(servico_lider.listar_lideres_atuais()) == 1
         assert len(servico_lider.listar_diretores_anteriores()) == 1
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_dois_vice_diretores_nacionais_ativos_sao_recusados(self, servico_lider):
         servico_lider.criar_lider(
             SolicitacaoLider(nome="Ana Souza", cargo="Vice-Diretor Nacional")
@@ -293,7 +292,6 @@ class TestCargoUnico:
                 SolicitacaoLider(nome="Bruno Lima", cargo="Vice-Diretor Nacional")
             )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_dois_diretores_na_mesma_regiao_sao_recusados(self, servico_lider):
         servico_lider.criar_lider(
             SolicitacaoLider(nome="Ana Souza", cargo="Diretor Regional", regiao="Sul")
@@ -304,7 +302,6 @@ class TestCargoUnico:
                 SolicitacaoLider(nome="Bruno Lima", cargo="Diretor Regional", regiao="Sul")
             )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_atualizacao_tambem_respeita_o_cargo_ocupado(self, servico_lider):
         """
         O caminho que costuma escapar: a regra entra no cadastro e nao na

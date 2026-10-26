@@ -91,6 +91,10 @@ MATRIZ = {
     ("POST", "/lider/"): SUPERADMIN,
     ("PUT", "/lider/{lider_id}"): SUPERADMIN,
     ("DELETE", "/lider/{lider_id}"): SUPERADMIN,
+    # US10: links de cadastro e da planilha de lideres. A planilha tem dados
+    # pessoais de mais de 2500 pessoas, entao ate a leitura e restrita.
+    ("GET", "/painel/links"): SUPERADMIN,
+    ("PUT", "/painel/links"): SUPERADMIN,
     # Midia e mapa
     ("GET", "/galeria/fotos"): ADMIN_OU_SUPERADMIN,
     ("GET", "/drive/imagem/{file_id}"): PUBLICA,

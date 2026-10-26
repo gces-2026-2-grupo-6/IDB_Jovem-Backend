@@ -16,6 +16,7 @@ import src.produto.model
 import src.voluntario.models
 import src.lider.model
 import src.participante.models
+import src.painel.model
 
 config = context.config
 
