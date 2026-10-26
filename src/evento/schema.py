@@ -1,8 +1,8 @@
 from datetime import datetime, date
 from enum import Enum
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
-from src.drive.utils import converter_link_para_proxy
+from src.drive.utils import converter_link_para_proxy, montar_url_download
 
 
 class TipoEvento(str, Enum):
@@ -58,3 +58,11 @@ class RespostaItemGaleria(BaseModel):
     image: str
     event: str
     location: str
+    # US11: link do botão "Baixar". Preenchido a partir do id quando não vier.
+    url_download: str = ""
+
+    @model_validator(mode="after")
+    def _preencher_download(self):
+        if not self.url_download:
+            self.url_download = montar_url_download(self.id)
+        return self

@@ -208,21 +208,18 @@ class TestDownloadDeMaterial:
     `url_visualizacao`, que serve para exibir, nao para baixar.
     """
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_galeria_do_evento_publica_link_de_download(self):
         assert campos_encontrados(RespostaDrive, CAMPOS_DOWNLOAD), (
             "`/evento/{id}/galeria` nao oferece como baixar o arquivo. "
             f"Nomes aceitos: {sorted(CAMPOS_DOWNLOAD)}."
         )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_galeria_geral_publica_link_de_download(self):
         assert campos_encontrados(RespostaItemGaleria, CAMPOS_DOWNLOAD), (
             "`/evento/galerias/todas` alimenta a galeria da home e tambem precisa "
             f"do link. Nomes aceitos: {sorted(CAMPOS_DOWNLOAD)}."
         )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_existe_rota_de_download(self):
         rotas = [rota.path for rota in app.routes if "download" in rota.path]
         assert rotas, (

@@ -14,6 +14,9 @@ from src.drive.model import ImagemCache
 from src.drive.utils import montar_url_proxy
 from src.auth.service import ServicoAuth
 
+# Documentos nativos do Google (Docs, Planilhas...) so saem por exportacao.
+_PREFIXO_NATIVO_GOOGLE = "application/vnd.google-apps."
+
 # Cache em memoria: { id_pasta: (timestamp, fotos) }
 _CACHE_GALERIAS: dict[str, tuple[float, list[RespostaDrive]]] = {}
 
@@ -237,6 +240,92 @@ class ServicoDrive:
                 resposta.close()
 
         return content_type, gerar_blocos()
+
+    def obter_metadados(self, file_id: str) -> dict:
+        """
+        Nome e tipo (mimeType) de um arquivo do Drive (US11).
+
+        Lanca ValueError se o arquivo nao existir/sem acesso (404) e
+        RuntimeError para demais falhas do Drive.
+        """
+        token = self._obter_token_valido()
+        url = (
+            f"https://www.googleapis.com/drive/v3/files/{file_id}?"
+            f"{urlencode({'fields': 'id,name,mimeType'})}"
+        )
+
+        requisicao = Request(url)
+        requisicao.add_header("Authorization", f"Bearer {token}")
+        requisicao.add_header("Accept", "application/json")
+
+        try:
+            with urlopen(requisicao, timeout=10) as resposta:
+                corpo = resposta.read().decode("utf-8")
+
+        except HTTPError as erro:
+            if erro.code == 404:
+                raise ValueError("Arquivo não encontrado no Google Drive") from erro
+            raise RuntimeError("Falha ao consultar arquivo no Google Drive") from erro
+
+        except URLError as erro:
+            raise RuntimeError("Falha ao consultar arquivo no Google Drive") from erro
+
+        dados = json.loads(corpo)
+        return {
+            "nome": dados.get("name") or file_id,
+            "content_type": dados.get("mimeType") or "application/octet-stream",
+        }
+
+    def transmitir_arquivo(
+        self, file_id: str, metadados: dict
+    ) -> tuple[str, str, Iterator[bytes]]:
+        """
+        Abre o download de um arquivo do Drive (US11) e devolve (nome,
+        content_type, gerador de blocos).
+
+        Documento nativo do Google (Docs, Planilhas, Apresentações) não tem
+        bytes para baixar com alt=media: é exportado em PDF.
+        """
+        token = self._obter_token_valido()
+        nome = metadados["nome"]
+        content_type = metadados["content_type"]
+
+        if content_type.startswith(_PREFIXO_NATIVO_GOOGLE):
+            url = (
+                f"https://www.googleapis.com/drive/v3/files/{file_id}/export?"
+                f"{urlencode({'mimeType': 'application/pdf'})}"
+            )
+            content_type = "application/pdf"
+            if not nome.lower().endswith(".pdf"):
+                nome = f"{nome}.pdf"
+        else:
+            url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
+
+        requisicao = Request(url)
+        requisicao.add_header("Authorization", f"Bearer {token}")
+
+        try:
+            resposta = urlopen(requisicao, timeout=30)
+
+        except HTTPError as erro:
+            if erro.code == 404:
+                raise ValueError("Arquivo não encontrado no Google Drive") from erro
+            raise RuntimeError("Falha ao baixar arquivo do Google Drive") from erro
+
+        except URLError as erro:
+            raise RuntimeError("Falha ao baixar arquivo do Google Drive") from erro
+
+        def gerar_blocos() -> Iterator[bytes]:
+            try:
+                while True:
+                    bloco = resposta.read(64 * 1024)
+                    if not bloco:
+                        break
+                    yield bloco
+            finally:
+                resposta.close()
+
+        return nome, content_type, gerar_blocos()
 
     def obter_imagem_com_cache(
         self,

@@ -71,7 +71,7 @@ CONTRATO = {
         "obrigatorios": {"email", "nome", "voluntario_id"},
     },
     "RespostaItemGaleria": {
-        "campos": {"event", "id", "image", "location"},
+        "campos": {"event", "id", "image", "location", "url_download"},
         "obrigatorios": {"event", "id", "image", "location"},
     },
 }

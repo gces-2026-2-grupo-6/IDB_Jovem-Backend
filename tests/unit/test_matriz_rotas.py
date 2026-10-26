@@ -98,6 +98,15 @@ MATRIZ = {
     # Midia e mapa
     ("GET", "/galeria/fotos"): ADMIN_OU_SUPERADMIN,
     ("GET", "/drive/imagem/{file_id}"): PUBLICA,
+    # US11: download aberto, sem login. A rota so entrega imagem ou arquivo
+    # cadastrado como material (ver baixar_arquivo).
+    ("GET", "/drive/download/{file_id}"): PUBLICA,
+    # US11: materiais para download. Leitura publica; "so o superadmin envia".
+    ("GET", "/material/"): PUBLICA,
+    ("GET", "/material/{material_id}"): PUBLICA,
+    ("POST", "/material/"): SUPERADMIN,
+    ("PUT", "/material/{material_id}"): SUPERADMIN,
+    ("DELETE", "/material/{material_id}"): SUPERADMIN,
     ("GET", "/mapa/endereco"): PUBLICA,
 }
 
