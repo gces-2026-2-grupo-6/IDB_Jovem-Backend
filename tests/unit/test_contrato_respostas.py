@@ -28,7 +28,7 @@ CONTRATO = {
             "calendario_evento_id", "data_fim", "data_inicio", "datas", "descricao",
             "evento_id", "formulario_link", "formulario_participante_link",
             "link_galeria", "link_imagem", "local_latitude", "local_longitude",
-            "nome", "nome_local", "tipo_evento",
+            "nome", "nome_local", "nova_data", "situacao", "tipo_evento",
         },
         "obrigatorios": {"data_fim", "data_inicio", "evento_id", "nome"},
     },
@@ -71,7 +71,7 @@ CONTRATO = {
         "obrigatorios": {"email", "nome", "voluntario_id"},
     },
     "RespostaItemGaleria": {
-        "campos": {"event", "id", "image", "location"},
+        "campos": {"event", "id", "image", "location", "url_download"},
         "obrigatorios": {"event", "id", "image", "location"},
     },
 }

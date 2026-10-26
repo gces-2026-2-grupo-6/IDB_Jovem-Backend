@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from src.database import obter_banco
 from src.security import verificar_roles
 from src.lider.repository import RepositorioLider
-from src.lider.service import ServicoLider
+from src.lider.service import ServicoLider, CargoOcupadoError
 from src.lider.schema import SolicitacaoLider, RespostaLider, ErroResposta
 
 
@@ -19,6 +19,12 @@ RESPOSTAS_AUTORIZACAO = {
 RESPOSTA_NAO_ENCONTRADO = {
     404: {"model": ErroResposta, "description": "Líder não encontrado."},
 }
+RESPOSTA_CARGO_OCUPADO = {
+    409: {
+        "model": ErroResposta,
+        "description": "Já existe um líder ativo no mesmo cargo e na mesma região (US10).",
+    },
+}
 
 
 def get_servico(db: Session = Depends(obter_banco)):
@@ -30,14 +36,18 @@ def get_servico(db: Session = Depends(obter_banco)):
     "/",
     response_model=RespostaLider,
     status_code=status.HTTP_201_CREATED,
-    responses=RESPOSTAS_AUTORIZACAO,
+    responses={**RESPOSTAS_AUTORIZACAO, **RESPOSTA_CARGO_OCUPADO},
 )
 def criar_lider(
     solicitacao: SolicitacaoLider,
     servico: ServicoLider = Depends(get_servico),
     _: dict = Depends(verificar_roles(["superadmin"])),
 ):
-    return servico.criar_lider(solicitacao)
+    try:
+        return servico.criar_lider(solicitacao)
+
+    except CargoOcupadoError as erro:
+        raise HTTPException(status_code=409, detail=str(erro)) from erro
 
 
 @router.get("/", response_model=list[RespostaLider])
@@ -78,7 +88,7 @@ def buscar_lider(
 @router.put(
     "/{lider_id}",
     response_model=RespostaLider,
-    responses={**RESPOSTAS_AUTORIZACAO, **RESPOSTA_NAO_ENCONTRADO},
+    responses={**RESPOSTAS_AUTORIZACAO, **RESPOSTA_NAO_ENCONTRADO, **RESPOSTA_CARGO_OCUPADO},
 )
 def atualizar_lider(
     lider_id: int,
@@ -88,6 +98,9 @@ def atualizar_lider(
 ):
     try:
         return servico.atualizar_lider(lider_id, solicitacao)
+
+    except CargoOcupadoError as erro:
+        raise HTTPException(status_code=409, detail=str(erro)) from erro
 
     except ValueError as erro:
         raise HTTPException(status_code=404, detail=str(erro)) from erro

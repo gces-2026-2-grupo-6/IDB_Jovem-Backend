@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session
 from src.database import obter_banco
 from src.evento.repository import RepositorioEvento
 from src.evento.service import ServicoEvento
-from src.evento.schema import RespostaEvento, SolicitacaoEvento, RespostaItemGaleria
+from src.evento.schema import (
+    RespostaEvento,
+    SolicitacaoEvento,
+    RespostaItemGaleria,
+    SolicitacaoSituacaoEvento,
+)
 from src.calendario.service import ServicoCalendario
 from src.drive.schema import RespostaDrive
 from src.drive.service import ServicoDrive
@@ -69,6 +74,23 @@ def atualizar_evento(
         return servico.atualizar_evento(evento_id, solicitar)
     except ValueError as erro:
         raise HTTPException(status_code=400, detail=str(erro)) from erro
+
+
+@router.patch("/{evento_id}/situacao", response_model=RespostaEvento)
+def alterar_situacao_evento(
+    evento_id: int,
+    solicitar: SolicitacaoSituacaoEvento,
+    servico: ServicoEvento = Depends(get_servico),
+    _: dict = Depends(verificar_permissao_setor(SETOR_EVENTOS))
+):
+    """
+    US14: marca o evento como cancelado ou adiado, ou volta para ativo.
+    O evento, as inscrições e as fotos continuam guardados.
+    """
+    try:
+        return servico.alterar_situacao(evento_id, solicitar)
+    except ValueError as erro:
+        raise HTTPException(status_code=404, detail=str(erro)) from erro
 
 
 @router.delete("/{evento_id}", status_code=204)

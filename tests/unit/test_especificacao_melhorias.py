@@ -182,14 +182,12 @@ class TestSituacaoDoEvento:
     continua no site — nao e exclusao. Hoje nao existe onde guardar isso.
     """
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_resposta_de_evento_publica_a_situacao(self):
         assert campos_encontrados(RespostaEvento, CAMPOS_SITUACAO), (
             "Sem esse campo o site nao tem como avisar que o evento foi cancelado "
             f"ou adiado. Nomes aceitos: {sorted(CAMPOS_SITUACAO)}."
         )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     @pytest.mark.parametrize("situacao", ["cancelado", "adiado"])
     def test_cadastro_aceita_marcar_o_evento(self, situacao):
         campos = campos_encontrados(SolicitacaoEvento, CAMPOS_SITUACAO)
@@ -208,21 +206,18 @@ class TestDownloadDeMaterial:
     `url_visualizacao`, que serve para exibir, nao para baixar.
     """
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_galeria_do_evento_publica_link_de_download(self):
         assert campos_encontrados(RespostaDrive, CAMPOS_DOWNLOAD), (
             "`/evento/{id}/galeria` nao oferece como baixar o arquivo. "
             f"Nomes aceitos: {sorted(CAMPOS_DOWNLOAD)}."
         )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_galeria_geral_publica_link_de_download(self):
         assert campos_encontrados(RespostaItemGaleria, CAMPOS_DOWNLOAD), (
             "`/evento/galerias/todas` alimenta a galeria da home e tambem precisa "
             f"do link. Nomes aceitos: {sorted(CAMPOS_DOWNLOAD)}."
         )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_existe_rota_de_download(self):
         rotas = [rota.path for rota in app.routes if "download" in rota.path]
         assert rotas, (
@@ -282,7 +277,6 @@ class TestCargoUnico:
         assert len(servico_lider.listar_lideres_atuais()) == 1
         assert len(servico_lider.listar_diretores_anteriores()) == 1
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_dois_vice_diretores_nacionais_ativos_sao_recusados(self, servico_lider):
         servico_lider.criar_lider(
             SolicitacaoLider(nome="Ana Souza", cargo="Vice-Diretor Nacional")
@@ -293,7 +287,6 @@ class TestCargoUnico:
                 SolicitacaoLider(nome="Bruno Lima", cargo="Vice-Diretor Nacional")
             )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_dois_diretores_na_mesma_regiao_sao_recusados(self, servico_lider):
         servico_lider.criar_lider(
             SolicitacaoLider(nome="Ana Souza", cargo="Diretor Regional", regiao="Sul")
@@ -304,7 +297,6 @@ class TestCargoUnico:
                 SolicitacaoLider(nome="Bruno Lima", cargo="Diretor Regional", regiao="Sul")
             )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_atualizacao_tambem_respeita_o_cargo_ocupado(self, servico_lider):
         """
         O caminho que costuma escapar: a regra entra no cadastro e nao na

@@ -57,3 +57,41 @@ def converter_link_para_proxy(link: str | None) -> str | None:
     if not file_id:
         return link
     return montar_url_proxy(file_id)
+
+
+_HOSTS_DO_GOOGLE = ("drive.google.com", "docs.google.com", "googleusercontent.com")
+
+
+def montar_url_download(file_id: str) -> str:
+    """URL absoluta da rota de download deste backend para um file_id (US11)."""
+    base = configuracoes.BASE_URL.rstrip("/")
+    return f"{base}/drive/download/{file_id}"
+
+
+def extrair_file_id_do_google(link: str | None) -> str | None:
+    """
+    Igual a extrair_file_id, mas só aceita links do Google ou o id cru.
+    Evita tratar como arquivo do Drive um link qualquer que tenha "/d/" no
+    caminho ou "?id=" na query.
+    """
+    if not link:
+        return None
+    link = link.strip()
+    if _REGEX_ID_NU.fullmatch(link):
+        return link
+    host = urlparse(link).netloc.lower()
+    if not any(host == dominio or host.endswith("." + dominio) for dominio in _HOSTS_DO_GOOGLE):
+        return None
+    return extrair_file_id(link)
+
+
+def link_de_download(link: str | None) -> str | None:
+    """
+    Link que o front usa no botão "Baixar". Arquivo do Drive passa pela rota
+    de download do backend, que devolve o arquivo com o nome original. Link
+    externo (YouTube, site) é devolvido como está.
+    """
+    file_id = extrair_file_id_do_google(link)
+    if not file_id:
+        return link
+    return montar_url_download(file_id)

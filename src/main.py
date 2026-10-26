@@ -15,6 +15,8 @@ from src.drive.controller import router as drive_routers
 from src.drive.controller import router_imagem as drive_imagem_router
 from src.mapa.controller import router as mapa_routers
 from src.lider.controller import router as lider_routers
+from src.painel.controller import router as painel_router
+from src.material.controller import router as material_router
 
 app = FastAPI(title="IDB Jovem Backend")
 
@@ -46,6 +48,8 @@ app.include_router(drive_routers)
 app.include_router(drive_imagem_router)
 app.include_router(mapa_routers)
 app.include_router(lider_routers)
+app.include_router(painel_router)
+app.include_router(material_router)
 
 @app.get("/")
 def read_root():

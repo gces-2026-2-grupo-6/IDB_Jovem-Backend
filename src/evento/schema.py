@@ -1,8 +1,8 @@
 from datetime import datetime, date
 from enum import Enum
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
-from src.drive.utils import converter_link_para_proxy
+from src.drive.utils import converter_link_para_proxy, montar_url_download
 
 
 class TipoEvento(str, Enum):
@@ -10,6 +10,13 @@ class TipoEvento(str, Enum):
     ACAMPAMENTO = "Acampamento"
     CAMPANHA_NACIONAL = "Campanha Nacional"
     OUTROS = "Outros"
+
+
+class SituacaoEvento(str, Enum):
+    """US14: o evento cancelado ou adiado continua no site, com aviso."""
+    ATIVO = "ativo"
+    CANCELADO = "cancelado"
+    ADIADO = "adiado"
 
 
 class BaseEvento(BaseModel):
@@ -29,6 +36,9 @@ class BaseEvento(BaseModel):
     formulario_participante_link: str | None = None
     link_imagem: str | None = None
     datas: list[date] | None = None
+    situacao: SituacaoEvento = SituacaoEvento.ATIVO
+    # Só faz sentido no adiado; o serviço zera nas outras situações.
+    nova_data: datetime | None = None
 
 class SolicitacaoEvento(BaseEvento):
     """"
@@ -38,6 +48,21 @@ class SolicitacaoEvento(BaseEvento):
     tipo_evento: TipoEvento
     local_latitude: float
     local_longitude: float
+
+class SolicitacaoSituacaoEvento(BaseModel):
+    """
+    Corpo do PATCH /evento/{id}/situacao (US14). Marcar como "ativo" desfaz
+    a marcação; nova_data só vale para "adiado".
+    """
+    situacao: SituacaoEvento
+    nova_data: datetime | None = None
+
+    @model_validator(mode="after")
+    def _nova_data_so_no_adiado(self):
+        if self.situacao != SituacaoEvento.ADIADO:
+            self.nova_data = None
+        return self
+
 
 class RespostaEvento(BaseEvento):
     evento_id: int
@@ -58,3 +83,11 @@ class RespostaItemGaleria(BaseModel):
     image: str
     event: str
     location: str
+    # US11: link do botão "Baixar". Preenchido a partir do id quando não vier.
+    url_download: str = ""
+
+    @model_validator(mode="after")
+    def _preencher_download(self):
+        if not self.url_download:
+            self.url_download = montar_url_download(self.id)
+        return self

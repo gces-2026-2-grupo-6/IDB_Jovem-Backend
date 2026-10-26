@@ -49,6 +49,8 @@ MATRIZ = {
     ("GET", "/evento/galerias/todas"): PUBLICA,
     ("POST", "/evento/"): SETOR_EVENTOS,
     ("PUT", "/evento/{evento_id}"): SETOR_EVENTOS,
+    # US14: cancelar, adiar ou desfazer e edicao do evento, nao exclusao.
+    ("PATCH", "/evento/{evento_id}/situacao"): SETOR_EVENTOS,
     ("DELETE", "/evento/{evento_id}"): SUPERADMIN,
     # Participantes do evento
     ("GET", "/evento/{evento_id}/participantes"): PUBLICA,
@@ -91,9 +93,22 @@ MATRIZ = {
     ("POST", "/lider/"): SUPERADMIN,
     ("PUT", "/lider/{lider_id}"): SUPERADMIN,
     ("DELETE", "/lider/{lider_id}"): SUPERADMIN,
+    # US10: links de cadastro e da planilha de lideres. A planilha tem dados
+    # pessoais de mais de 2500 pessoas, entao ate a leitura e restrita.
+    ("GET", "/painel/links"): SUPERADMIN,
+    ("PUT", "/painel/links"): SUPERADMIN,
     # Midia e mapa
     ("GET", "/galeria/fotos"): ADMIN_OU_SUPERADMIN,
     ("GET", "/drive/imagem/{file_id}"): PUBLICA,
+    # US11: download aberto, sem login. A rota so entrega imagem ou arquivo
+    # cadastrado como material (ver baixar_arquivo).
+    ("GET", "/drive/download/{file_id}"): PUBLICA,
+    # US11: materiais para download. Leitura publica; "so o superadmin envia".
+    ("GET", "/material/"): PUBLICA,
+    ("GET", "/material/{material_id}"): PUBLICA,
+    ("POST", "/material/"): SUPERADMIN,
+    ("PUT", "/material/{material_id}"): SUPERADMIN,
+    ("DELETE", "/material/{material_id}"): SUPERADMIN,
     ("GET", "/mapa/endereco"): PUBLICA,
 }
 
