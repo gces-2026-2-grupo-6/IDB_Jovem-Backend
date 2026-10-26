@@ -2,7 +2,7 @@ name: CI Pipeline
 
 on:
   push:
-    branches: ["main", "feat/**", "fix/**"]
+    branches: ["main", "feat/**", "fix/**", "qa/**", "chore/**"]
   pull_request:
     branches: ["main"]
 
@@ -20,7 +20,8 @@ jobs:
       - name: Instalar dependências
         run: pip install -r requirements.txt
       - name: Rodar Pylint
-        run: pylint src/ --fail-under=7.5 --disable=C0114,C0115,C0116,E0401,R0801 --ignore=migrations
+        # Piso de 9.5 com a nota real em 9.88: barra queda sem travar refatoracao.
+        run: pylint src/ --fail-under=9.5 --disable=C0114,C0115,C0116,E0401,R0801 --ignore=migrations
 
   test:
     name: Testes & Coverage
@@ -147,7 +148,12 @@ jobs:
           docker logs backend_endpoint
           exit 1
       - name: Rodar testes de endpoint contra o container
-        run: pytest tests/endpoint/ -v -m endpoint
+        # --no-cov: o piso de cobertura do pytest.ini vale para toda invocacao
+        # do pytest. Aqui o codigo roda dentro do container, entao o processo
+        # do runner nao executa src/ e a cobertura medida e 0% — o piso
+        # derrubava o job depois de todos os testes passarem. Quem mede
+        # cobertura e o job "Testes & Coverage"; este verifica a aplicacao no ar.
+        run: pytest tests/endpoint/ -v -m endpoint --no-cov
       - name: Parar container
         if: always()
         run: docker stop backend_endpoint || true
