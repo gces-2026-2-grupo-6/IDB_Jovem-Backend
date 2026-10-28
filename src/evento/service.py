@@ -12,6 +12,11 @@ def _limpar_nova_data_fora_do_adiado(evento: Evento) -> None:
         evento.nova_data = None
 
 
+def _is_online(modalidade) -> bool:
+    valor = getattr(modalidade, "value", modalidade)
+    return str(valor).strip().lower() == "online"
+
+
 class ServicoEvento:
 
     def __init__(
@@ -25,21 +30,31 @@ class ServicoEvento:
 
     def criar_evento(self, dados: SolicitacaoEvento):
         validar_datas(dados.data_inicio, dados.data_fim)
-        validar_coordenadas(dados.local_latitude, dados.local_longitude)
         evento = Evento(**dados.model_dump())
         _limpar_nova_data_fora_do_adiado(evento)
         evento = self.repositorio.salvar(evento)
 
-        nome_local = self.mapa_servico.buscar_endereco_por_coordenadas(
-            evento.local_latitude,
-            evento.local_longitude
-        )
+        if _is_online(evento.modalidade):
+            evento.modalidade = "online"
+            evento.local_latitude = None
+            evento.local_longitude = None
+            evento.nome_local = None
+            local_calendario = evento.link_transmissao or "Online"
+        else:
+            evento.modalidade = "presencial"
+            evento.link_transmissao = None
+            validar_coordenadas(evento.local_latitude, evento.local_longitude)
+            nome_local = self.mapa_servico.buscar_endereco_por_coordenadas(
+                evento.local_latitude,
+                evento.local_longitude
+            )
+            evento.nome_local = nome_local
+            local_calendario = nome_local
 
-        evento.nome_local = nome_local
         evento = self.repositorio.salvar(evento)
 
         try:
-            calendario_id = self.calendario.criar_evento(evento, nome_local)
+            calendario_id = self.calendario.criar_evento(evento, local_calendario)
             evento.calendario_evento_id = calendario_id
             evento = self.repositorio.salvar(evento)
 
@@ -69,20 +84,29 @@ class ServicoEvento:
             setattr(evento, campo, novo_valor)
 
         _limpar_nova_data_fora_do_adiado(evento)
-
         validar_datas(evento.data_inicio, evento.data_fim)
-        validar_coordenadas(evento.local_latitude, evento.local_longitude)
 
-        evento.nome_local = self.mapa_servico.buscar_endereco_por_coordenadas(
-            evento.local_latitude,
-            evento.local_longitude
-        )
+        if _is_online(evento.modalidade):
+            evento.modalidade = "online"
+            evento.local_latitude = None
+            evento.local_longitude = None
+            evento.nome_local = None
+            local_calendario = evento.link_transmissao or "Online"
+        else:
+            evento.modalidade = "presencial"
+            evento.link_transmissao = None
+            validar_coordenadas(evento.local_latitude, evento.local_longitude)
+            evento.nome_local = self.mapa_servico.buscar_endereco_por_coordenadas(
+                evento.local_latitude,
+                evento.local_longitude
+            )
+            local_calendario = evento.nome_local
 
         if evento.calendario_evento_id:
             self.calendario.atualizar_evento(
                 evento.calendario_evento_id,
                 evento,
-                evento.nome_local
+                local_calendario
             )
 
         return self.repositorio.salvar(evento)
@@ -102,8 +126,13 @@ class ServicoEvento:
         # a próxima edição do evento sincroniza de novo.
         if evento.calendario_evento_id:
             try:
+                local_calendario = (
+                    evento.link_transmissao or "Online"
+                    if _is_online(evento.modalidade)
+                    else evento.nome_local
+                )
                 self.calendario.atualizar_evento(
-                    evento.calendario_evento_id, evento, evento.nome_local
+                    evento.calendario_evento_id, evento, local_calendario
                 )
             except RuntimeError as erro:
                 print(f"Erro ao atualizar a situacao no Google Calendario: {erro}")
