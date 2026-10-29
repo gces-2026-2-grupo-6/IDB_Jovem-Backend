@@ -1,7 +1,10 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from src.evento.model import Evento
+from src.atividade.model import Atividade
 from src.banda_palestrante.model import BandaPalestrante, Participa
+from src.participante.models import Inscricao
+from src.voluntario.models import Trabalha
 
 
 class RepositorioEvento:
@@ -27,6 +30,55 @@ class RepositorioEvento:
         if evento is not None:
             self.db.delete(evento)
             self.db.commit()
+
+    def contar_vinculos(self, evento_id: int) -> dict:
+        return {
+            "participantes": (
+                self.db.query(Inscricao)
+                .filter(Inscricao.evento_id == evento_id)
+                .count()
+            ),
+            "voluntarios": (
+                self.db.query(Trabalha)
+                .filter(Trabalha.evento_id == evento_id)
+                .count()
+            ),
+            "atividades": (
+                self.db.query(Atividade)
+                .filter(Atividade.evento_id == evento_id)
+                .count()
+            ),
+            "convidados": (
+                self.db.query(Participa)
+                .filter(Participa.evento_id == evento_id)
+                .count()
+            ),
+        }
+
+    def preparar_exclusao(self, evento: Evento) -> None:
+        if evento is None:
+            return
+
+        self.db.query(Participa).filter(
+            Participa.evento_id == evento.evento_id
+        ).delete(synchronize_session=False)
+        self.db.query(Trabalha).filter(
+            Trabalha.evento_id == evento.evento_id
+        ).delete(synchronize_session=False)
+        self.db.query(Inscricao).filter(
+            Inscricao.evento_id == evento.evento_id
+        ).delete(synchronize_session=False)
+        self.db.query(Atividade).filter(
+            Atividade.evento_id == evento.evento_id
+        ).delete(synchronize_session=False)
+        self.db.delete(evento)
+        self.db.flush()
+
+    def confirmar_exclusao(self) -> None:
+        self.db.commit()
+
+    def cancelar_exclusao(self) -> None:
+        self.db.rollback()
 
     def pesquisar_por_nome(self, termo: str) -> list[Evento]:
         sql = text("""

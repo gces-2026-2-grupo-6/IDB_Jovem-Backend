@@ -1,10 +1,12 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from src.evento.controller import (
     criar_evento, buscar_todos_evento, buscar_evento_id,
     atualizar_evento, deletar_evento, pesquisar_eventos, 
     listar_galeria_evento, listar_todas_galerias, get_servico,
+    resumir_exclusao_evento,
 )
 
 
@@ -76,6 +78,44 @@ class TestEventoController:
         mock_servico.deletar_evento.side_effect = ValueError("Não encontrado")
         with pytest.raises(HTTPException) as exc:
             deletar_evento(evento_id=1, servico=mock_servico, _={})
+        assert exc.value.status_code == 404
+
+    def test_deletar_evento_falha_na_agenda(self):
+        """US20 (A3): falha no Google responde 502 e avisa que nada foi apagado."""
+        mock_servico = MagicMock()
+        mock_servico.deletar_evento.side_effect = RuntimeError("Google fora")
+        with pytest.raises(HTTPException) as exc:
+            deletar_evento(evento_id=1, servico=mock_servico, _={})
+        assert exc.value.status_code == 502
+        assert "Nada foi apagado" in exc.value.detail
+
+    def test_deletar_evento_falha_no_banco(self):
+        """US20 (A3): falha no banco responde 500 e avisa que nada foi apagado."""
+        mock_servico = MagicMock()
+        mock_servico.deletar_evento.side_effect = SQLAlchemyError("db fora")
+        with pytest.raises(HTTPException) as exc:
+            deletar_evento(evento_id=1, servico=mock_servico, _={})
+        assert exc.value.status_code == 500
+        assert "Nada foi apagado" in exc.value.detail
+
+    def test_resumir_exclusao_evento(self):
+        mock_servico = MagicMock()
+        mock_servico.resumo_exclusao.return_value = {
+            "evento_id": 1,
+            "participantes": 2,
+            "voluntarios": 1,
+            "atividades": 3,
+            "convidados": 0,
+        }
+        resultado = resumir_exclusao_evento(evento_id=1, servico=mock_servico, _={})
+        mock_servico.resumo_exclusao.assert_called_once_with(1)
+        assert resultado["participantes"] == 2
+
+    def test_resumir_exclusao_evento_inexistente(self):
+        mock_servico = MagicMock()
+        mock_servico.resumo_exclusao.side_effect = ValueError("Evento não encontrado.")
+        with pytest.raises(HTTPException) as exc:
+            resumir_exclusao_evento(evento_id=1, servico=mock_servico, _={})
         assert exc.value.status_code == 404
 
     @patch("src.evento.controller.ServicoDrive")
