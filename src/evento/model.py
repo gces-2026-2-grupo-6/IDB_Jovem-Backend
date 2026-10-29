@@ -36,7 +36,8 @@ class Evento(Base):
     )
     # US14: nova data do evento adiado, quando ja existir.
     nova_data            = Column(DateTime(timezone=True), nullable=True)
-
+    modalidade           = Column(Text, nullable=False, default="presencial", server_default=text("'presencial'"))
+    link_transmissao     = Column(Text, nullable=True)
 
 class FotoExcluidaEvento(Base):
     __tablename__ = "evento_foto_excluida"

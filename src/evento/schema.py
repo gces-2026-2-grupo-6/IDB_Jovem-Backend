@@ -19,6 +19,11 @@ class SituacaoEvento(str, Enum):
     ADIADO = "adiado"
 
 
+class ModalidadeEvento(str, Enum):
+    PRESENCIAL = "presencial"
+    ONLINE = "online"
+
+
 class BaseEvento(BaseModel):
     nome: str
     tipo_evento: TipoEvento | None = None
@@ -26,7 +31,7 @@ class BaseEvento(BaseModel):
     # As colunas aceitam nulo no banco. Exigir os dois numeros aqui fazia um
     # unico evento sem coordenadas derrubar a listagem inteira com erro 500,
     # porque a falha e na serializacao da resposta e vale para todos os itens.
-    # A criacao continua exigindo as coordenadas em SolicitacaoEvento.
+    # A criacao exige coordenadas apenas quando presencial (US19).
     local_latitude: float | None = None
     local_longitude: float | None = None
     data_inicio: datetime
@@ -40,14 +45,43 @@ class BaseEvento(BaseModel):
     # Só faz sentido no adiado; o serviço zera nas outras situações.
     nova_data: datetime | None = None
 
+    modalidade: ModalidadeEvento = ModalidadeEvento.PRESENCIAL
+    link_transmissao: str | None = None
+
+    @field_validator("modalidade", mode="before")
+    @classmethod
+    def _normalizar_modalidade(cls, v):
+        if v is None:
+            return ModalidadeEvento.PRESENCIAL
+        if isinstance(v, bool):
+            return ModalidadeEvento.ONLINE if v else ModalidadeEvento.PRESENCIAL
+        if isinstance(v, str):
+            v_lower = v.strip().lower()
+            if v_lower in ("online", "true"):
+                return ModalidadeEvento.ONLINE
+            if v_lower in ("presencial", "false"):
+                return ModalidadeEvento.PRESENCIAL
+        return v
+
 class SolicitacaoEvento(BaseEvento):
     """"
     Modelo para a solicitação de criação ou atualização de um evento.
     Herda os campos básicos de Baseevento.
     """
     tipo_evento: TipoEvento
-    local_latitude: float
-    local_longitude: float
+    local_latitude: float | None = None
+    local_longitude: float | None = None
+
+    @model_validator(mode="after")
+    def _validar_local_por_modalidade(self):
+        if self.modalidade == ModalidadeEvento.PRESENCIAL:
+            if self.local_latitude is None or self.local_longitude is None:
+                raise ValueError("Evento presencial exige latitude e longitude.")
+            self.link_transmissao = None
+        else:
+            self.local_latitude = None
+            self.local_longitude = None
+        return self
 
 class SolicitacaoSituacaoEvento(BaseModel):
     """
@@ -78,6 +112,13 @@ class SolicitacaoFotosExcluidas(BaseModel):
         if not limpas:
             raise ValueError("Selecione ao menos uma foto.")
         return limpas
+        
+class RespostaResumoExclusaoEvento(BaseModel):
+    evento_id: int
+    participantes: int
+    voluntarios: int
+    atividades: int
+    convidados: int
 
 
 class RespostaEvento(BaseEvento):

@@ -46,6 +46,8 @@ MATRIZ = {
     ("GET", "/evento/buscar"): PUBLICA,
     ("GET", "/evento/{evento_id}"): PUBLICA,
     ("GET", "/evento/{evento_id}/galeria"): PUBLICA,
+    # US20: o resumo do que sai junto com o evento só serve a quem pode excluir.
+    ("GET", "/evento/{evento_id}/exclusao"): SUPERADMIN,
     ("GET", "/evento/galerias/todas"): PUBLICA,
     ("POST", "/evento/{evento_id}/galeria/excluidas"): SUPERADMIN,
     ("POST", "/evento/"): SETOR_EVENTOS,
