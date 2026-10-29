@@ -326,7 +326,6 @@ class TestCalendarioComEventosPassados:
     `CalendarioSection.jsx` vai ver a lista continuar sem o passado.
     """
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_consulta_nao_recorta_pelo_instante_atual(self, servico_calendario):
         url = servico_calendario._montar_url_evento()
         assert "timeMin" not in url, (
@@ -335,7 +334,6 @@ class TestCalendarioComEventosPassados:
             "de corte do projeto."
         )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_consulta_pede_mais_que_dez_eventos(self, servico_calendario):
         url = servico_calendario._montar_url_evento()
         assert "maxResults=10&" not in url and not url.endswith("maxResults=10"), (

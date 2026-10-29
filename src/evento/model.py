@@ -1,4 +1,14 @@
-from sqlalchemy import Column, Integer, Text, Numeric, DateTime, Date, ARRAY, text
+from sqlalchemy import (
+    Column,
+    Integer,
+    Text,
+    Numeric,
+    DateTime,
+    Date,
+    ARRAY,
+    ForeignKey,
+    text,
+)
 from src.database import Base
 
 
@@ -28,3 +38,13 @@ class Evento(Base):
     nova_data            = Column(DateTime(timezone=True), nullable=True)
     modalidade           = Column(Text, nullable=False, default="presencial", server_default=text("'presencial'"))
     link_transmissao     = Column(Text, nullable=True)
+
+class FotoExcluidaEvento(Base):
+    __tablename__ = "evento_foto_excluida"
+
+    evento_id = Column(
+        Integer,
+        ForeignKey("evento.evento_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    foto_id   = Column(Text, primary_key=True)

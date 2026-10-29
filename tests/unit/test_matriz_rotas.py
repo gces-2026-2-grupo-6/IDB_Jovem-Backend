@@ -49,6 +49,7 @@ MATRIZ = {
     # US20: o resumo do que sai junto com o evento só serve a quem pode excluir.
     ("GET", "/evento/{evento_id}/exclusao"): SUPERADMIN,
     ("GET", "/evento/galerias/todas"): PUBLICA,
+    ("POST", "/evento/{evento_id}/galeria/excluidas"): SUPERADMIN,
     ("POST", "/evento/"): SETOR_EVENTOS,
     ("PUT", "/evento/{evento_id}"): SETOR_EVENTOS,
     # US14: cancelar, adiar ou desfazer e edicao do evento, nao exclusao.
