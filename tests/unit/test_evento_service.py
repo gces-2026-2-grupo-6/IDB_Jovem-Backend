@@ -93,11 +93,53 @@ def test_atualizar_evento(servico, mock_repositorio, mock_calendario, mock_mapa)
 def test_deletar_evento(servico, mock_repositorio, mock_calendario):
     evento = Evento(evento_id=1, calendario_evento_id="cal-id")
     mock_repositorio.buscar_por_id.return_value = evento
-    
+
     servico.deletar_evento(1)
-    
+
+    mock_repositorio.preparar_exclusao.assert_called_once_with(evento)
     mock_calendario.deletar_evento.assert_called_once_with("cal-id")
-    mock_repositorio.deletar.assert_called_once_with(evento)
+    mock_repositorio.confirmar_exclusao.assert_called_once()
+    mock_repositorio.cancelar_exclusao.assert_not_called()
+
+
+def test_deletar_evento_sem_calendario(servico, mock_repositorio, mock_calendario):
+    """Criterio comum da US20: evento sem calendario e sem inscricoes exclui como antes."""
+    evento = Evento(evento_id=1, calendario_evento_id=None)
+    mock_repositorio.buscar_por_id.return_value = evento
+
+    servico.deletar_evento(1)
+
+    mock_calendario.deletar_evento.assert_not_called()
+    mock_repositorio.confirmar_exclusao.assert_called_once()
+
+
+def test_resumo_exclusao(servico, mock_repositorio):
+    """US20 (A1): o resumo inclui o id do evento e a contagem de cada vinculo."""
+    mock_repositorio.buscar_por_id.return_value = Evento(evento_id=7, nome="Retiro")
+    mock_repositorio.contar_vinculos.return_value = {
+        "participantes": 2,
+        "voluntarios": 3,
+        "atividades": 4,
+        "convidados": 5,
+    }
+
+    assert servico.resumo_exclusao(7) == {
+        "evento_id": 7,
+        "participantes": 2,
+        "voluntarios": 3,
+        "atividades": 4,
+        "convidados": 5,
+    }
+    mock_repositorio.contar_vinculos.assert_called_once_with(7)
+
+
+def test_resumo_exclusao_evento_inexistente(servico, mock_repositorio):
+    mock_repositorio.buscar_por_id.return_value = None
+
+    with pytest.raises(ValueError, match="Evento não encontrado."):
+        servico.resumo_exclusao(99)
+
+    mock_repositorio.contar_vinculos.assert_not_called()
 
 def test_listar_eventos(servico, mock_repositorio):
     servico.listar_evento()

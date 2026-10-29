@@ -143,14 +143,12 @@ class TestModalidadeDoEvento:
     desobriga o endereco, presencial continua como esta.
     """
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_resposta_de_evento_publica_a_modalidade(self):
         assert campos_encontrados(RespostaEvento, CAMPOS_MODALIDADE), (
             "O front precisa saber se o evento e online para decidir entre mostrar "
             f"endereco ou link de acesso. Nomes aceitos: {sorted(CAMPOS_MODALIDADE)}."
         )
 
-    @pytest.mark.xfail(strict=True, reason=PENDENTE)
     def test_evento_online_e_aceito_sem_coordenadas(self):
         campos = campos_encontrados(SolicitacaoEvento, CAMPOS_MODALIDADE)
         assert campos, f"Cadastro sem campo de modalidade. Aceitos: {sorted(CAMPOS_MODALIDADE)}."
