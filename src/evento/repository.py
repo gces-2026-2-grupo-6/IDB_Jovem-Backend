@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from src.evento.model import Evento
+from src.evento.model import Evento, FotoExcluidaEvento
 from src.banda_palestrante.model import BandaPalestrante, Participa
 
 
@@ -79,3 +79,22 @@ class RepositorioEvento:
     def desvincular_participante(self, vinculo: Participa) -> None:
         self.db.delete(vinculo)
         self.db.commit()
+
+    def buscar_fotos_excluidas(self, evento_id: int) -> set[str]:
+        registros = (
+            self.db.query(FotoExcluidaEvento)
+            .filter(FotoExcluidaEvento.evento_id == evento_id)
+            .all()
+        )
+        return {registro.foto_id for registro in registros}
+
+    def registrar_fotos_excluidas(self, evento_id: int, foto_ids: list[str]) -> None:
+        ja_excluidas = self.buscar_fotos_excluidas(evento_id)
+        novas = [
+            FotoExcluidaEvento(evento_id=evento_id, foto_id=foto_id)
+            for foto_id in foto_ids
+            if foto_id not in ja_excluidas
+        ]
+        if novas:
+            self.db.add_all(novas)
+            self.db.commit()

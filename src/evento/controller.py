@@ -9,6 +9,7 @@ from src.evento.schema import (
     RespostaEvento,
     SolicitacaoEvento,
     RespostaItemGaleria,
+    SolicitacaoFotosExcluidas,
     SolicitacaoSituacaoEvento,
 )
 from src.calendario.service import ServicoCalendario
@@ -122,7 +123,10 @@ def listar_todas_galerias(servico: ServicoEvento = Depends(get_servico)):
 
             try:
                 fotos = drive.listar_fotos(evento.link_galeria)
+                excluidas = set(servico.listar_fotos_excluidas(evento.evento_id))
                 for foto in fotos:
+                    if foto.id in excluidas:
+                        continue
                     resultado.append(
                         RespostaItemGaleria(
                             id=foto.id,
@@ -153,14 +157,32 @@ def listar_galeria_evento(
             return []
 
         drive = ServicoDrive()
+        fotos = drive.listar_fotos(evento.link_galeria)
+        excluidas = set(servico.listar_fotos_excluidas(evento_id))
 
-        return drive.listar_fotos(evento.link_galeria)
+        return [foto for foto in fotos if foto.id not in excluidas]
 
     except ValueError as erro:
         raise HTTPException(status_code=404, detail=str(erro)) from erro
 
     except RuntimeError as erro:
         raise HTTPException(status_code=502, detail=str(erro)) from erro
+
+
+@router.post(
+    "/{evento_id}/galeria/excluidas",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def excluir_fotos_galeria_evento(
+    evento_id: int,
+    solicitar: SolicitacaoFotosExcluidas,
+    servico: ServicoEvento = Depends(get_servico),
+    _: dict = Depends(verificar_roles(["superadmin"])),
+):
+    try:
+        servico.excluir_fotos_galeria(evento_id, solicitar)
+    except ValueError as erro:
+        raise HTTPException(status_code=404, detail=str(erro)) from erro
 
 
 @router.get(

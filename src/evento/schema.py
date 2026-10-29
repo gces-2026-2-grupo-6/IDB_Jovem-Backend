@@ -64,6 +64,22 @@ class SolicitacaoSituacaoEvento(BaseModel):
         return self
 
 
+class SolicitacaoFotosExcluidas(BaseModel):
+    fotos: list[str]
+
+    @field_validator("fotos")
+    @classmethod
+    def _validar_fotos(cls, valor: list[str]) -> list[str]:
+        limpas: list[str] = []
+        for item in valor:
+            foto_id = (item or "").strip()
+            if foto_id and foto_id not in limpas:
+                limpas.append(foto_id)
+        if not limpas:
+            raise ValueError("Selecione ao menos uma foto.")
+        return limpas
+
+
 class RespostaEvento(BaseEvento):
     evento_id: int
     calendario_evento_id: str | None = None

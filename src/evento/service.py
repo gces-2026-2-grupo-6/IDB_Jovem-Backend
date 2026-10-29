@@ -1,4 +1,9 @@
-from src.evento.schema import SituacaoEvento, SolicitacaoEvento, SolicitacaoSituacaoEvento
+from src.evento.schema import (
+    SituacaoEvento,
+    SolicitacaoEvento,
+    SolicitacaoFotosExcluidas,
+    SolicitacaoSituacaoEvento,
+)
 from src.shared.utils import validar_datas, validar_coordenadas
 from src.evento.model import Evento
 from src.evento.repository import RepositorioEvento
@@ -149,4 +154,12 @@ class ServicoEvento:
             raise ValueError("Vínculo entre evento e participante não encontrado.")
 
         self.repositorio.desvincular_participante(vinculo)
-    
+
+    def excluir_fotos_galeria(
+        self, evento_id: int, dados: SolicitacaoFotosExcluidas
+    ) -> None:
+        self.buscar_evento(evento_id)
+        self.repositorio.registrar_fotos_excluidas(evento_id, dados.fotos)
+
+    def listar_fotos_excluidas(self, evento_id: int) -> set[str]:
+        return self.repositorio.buscar_fotos_excluidas(evento_id)

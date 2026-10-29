@@ -1,4 +1,14 @@
-from sqlalchemy import Column, Integer, Text, Numeric, DateTime, Date, ARRAY, text
+from sqlalchemy import (
+    Column,
+    Integer,
+    Text,
+    Numeric,
+    DateTime,
+    Date,
+    ARRAY,
+    ForeignKey,
+    text,
+)
 from src.database import Base
 
 
@@ -26,3 +36,14 @@ class Evento(Base):
     )
     # US14: nova data do evento adiado, quando ja existir.
     nova_data            = Column(DateTime(timezone=True), nullable=True)
+
+
+class FotoExcluidaEvento(Base):
+    __tablename__ = "evento_foto_excluida"
+
+    evento_id = Column(
+        Integer,
+        ForeignKey("evento.evento_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    foto_id   = Column(Text, primary_key=True)
