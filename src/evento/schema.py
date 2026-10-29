@@ -98,6 +98,14 @@ class SolicitacaoSituacaoEvento(BaseModel):
         return self
 
 
+class RespostaResumoExclusaoEvento(BaseModel):
+    evento_id: int
+    participantes: int
+    voluntarios: int
+    atividades: int
+    convidados: int
+
+
 class RespostaEvento(BaseEvento):
     evento_id: int
     calendario_evento_id: str | None = None

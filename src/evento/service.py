@@ -139,13 +139,25 @@ class ServicoEvento:
 
         return evento
 
+    def resumo_exclusao(self, evento_id: int) -> dict:
+        self.buscar_evento(evento_id)
+        return {"evento_id": evento_id, **self.repositorio.contar_vinculos(evento_id)}
+
     def deletar_evento(self, evento_id: int):
         evento = self.buscar_evento(evento_id)
+        calendario_id = evento.calendario_evento_id
 
-        if evento.calendario_evento_id:
-            self.calendario.deletar_evento(evento.calendario_evento_id)
+        try:
+            self.repositorio.preparar_exclusao(evento)
 
-        self.repositorio.deletar(evento)
+            if calendario_id:
+                self.calendario.deletar_evento(calendario_id)
+
+            self.repositorio.confirmar_exclusao()
+
+        except Exception:
+            self.repositorio.cancelar_exclusao()
+            raise
 
     def pesquisar_eventos(self, termo: str):
         termo = termo.strip()
