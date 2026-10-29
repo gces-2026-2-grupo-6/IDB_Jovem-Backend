@@ -1,5 +1,5 @@
 import os
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 import json
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -40,8 +40,7 @@ class ServicoCalendario:
 
     def _montar_url_evento(self) -> str:
         parametros = {
-            "timeMin": datetime.now(timezone.utc).isoformat(),
-            "maxResults": 10,
+            "maxResults": 250,
             "singleEvents": "true",
             "orderBy": "startTime",
         }

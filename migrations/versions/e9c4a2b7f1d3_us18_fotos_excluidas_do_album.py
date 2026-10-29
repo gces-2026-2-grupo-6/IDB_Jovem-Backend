@@ -1,7 +1,7 @@
 """US18: fotos excluidas do album de um evento no site
 
 Revision ID: e9c4a2b7f1d3
-Revises: d4a7b9c1e3f6
+Revises: f1e2d3c4b5a6
 Create Date: 2026-10-28 19:55:00.000000
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "e9c4a2b7f1d3"
-down_revision: Union[str, Sequence[str], None] = "d4a7b9c1e3f6"
+down_revision: Union[str, Sequence[str], None] = "f1e2d3c4b5a6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
