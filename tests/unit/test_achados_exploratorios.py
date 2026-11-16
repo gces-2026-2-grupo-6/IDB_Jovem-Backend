@@ -4,11 +4,12 @@ Nenhum dos defeitos abaixo apareceu em três sprints de suíte verde, e nenhum
 apareceria: a cobertura da linha é 99,23% e todas estas linhas estão cobertas.
 O que faltava não era execução, era alguém perguntar o que a resposta carrega.
 
-Dois registros são especificação executável, no mesmo formato da Sprint 3:
-`xfail` estrito, que falha enquanto o defeito existe e vira `XPASS(strict)` —
-isto é, build vermelha — no dia em que alguém "consertar" sem tirar o
-marcador. O terceiro é teste verde: trava um comportamento que hoje está
-certo por decisão explícita da equipe e não pode mudar sem que se perceba.
+Os dois primeiros nasceram como especificação executável — `xfail` estrito,
+no formato da Sprint 3 — e **os defeitos foram corrigidos na mesma sprint**:
+os marcadores saíram e os testes agora são regressão, que é o destino certo
+de uma especificação cumprida. O terceiro é teste verde desde o início: trava
+um comportamento que hoje está certo por decisão explícita da equipe e não
+pode mudar sem que se perceba.
 
 Sessão EX-01 (superfície de autenticação e integração com o Google),
 registrada no relatório da Sprint 4.
@@ -47,19 +48,6 @@ def _tokens_do_google():
     }
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "GET /auth/callback devolve o payload inteiro do Google no corpo da "
-        "resposta, incluindo o refresh_token, que é credencial de longa "
-        "duração da conta Google do projeto (Drive, Calendar e Forms). Veio "
-        "de conveniência de desenvolvimento — a própria resposta diz 'Copie o "
-        "refresh_token do terminal/tela' — e foi para produção. Ao corrigir, "
-        "o teste tests/unit/test_auth_controller.py::test_callback_google_"
-        "sucesso também precisa mudar: ele afirma hoje que os tokens voltam "
-        "em 'dados'."
-    ),
-)
 def test_callback_do_google_nao_devolve_o_refresh_token_na_resposta():
     """A resposta do callback não pode carregar credencial de longa duração.
 
@@ -84,15 +72,6 @@ def test_callback_do_google_nao_devolve_o_refresh_token_na_resposta():
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "src/auth/controller.py imprime o refresh_token em stdout. Em "
-        "produção stdout é o log do contêiner: `docker compose logs "
-        "jovem-backend` mostra a credencial em texto puro, e o log fica "
-        "retido muito depois de a sessão acabar."
-    ),
-)
 def test_callback_do_google_nao_imprime_o_refresh_token_no_log():
     """Credencial não pode ir para o log do contêiner.
 

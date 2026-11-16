@@ -34,7 +34,13 @@ class TestAuthController:
 
         resultado = callback_google(request=mock_request, codigo="code-123")
         assert "mensagem" in resultado
-        assert resultado["dados"]["access_token"] == "at-123"
+        # A resposta confirma o login e diz onde buscar o refresh token, sem
+        # carregar token nenhum: ver _guardar_refresh_token em
+        # src/auth/controller.py e os testes de
+        # tests/unit/test_achados_exploratorios.py.
+        assert resultado["recebeu_refresh_token"] is True
+        assert "at-123" not in str(resultado)
+        assert "rt-456" not in str(resultado)
 
     def test_callback_google_sessao_expirada(self):
         mock_request = MagicMock()
