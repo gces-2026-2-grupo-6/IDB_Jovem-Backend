@@ -234,3 +234,137 @@ class TestDeletarEvento:
             mock_urlopen.side_effect = URLError("sem rede")
             with pytest.raises(RuntimeError, match="Falha ao conectar"):
                 servico_com_token.deletar_evento("id-x")
+
+
+URL_EVENTOS = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
+
+
+class TestCabecalhosNasChamadasAoCalendario:
+    """
+    O que as chamadas ao Google Calendar carregam.
+
+    Mesma lacuna que a QA21 fechou para o Drive, agora achada pela medicao por
+    mutacao sobre o codigo da Sprint 3: apagar
+    `add_header("Authorization", ...)` ou `add_header("Content-Type", ...)` em
+    `src/calendario/service.py` nao quebrava teste nenhum. Os testes acima
+    verificam o metodo e o corpo, nunca os cabecalhos. Em producao, sem o token
+    o Google responde 401 e a agenda deixa de espelhar o site; sem o
+    Content-Type, o urllib manda o JSON como formulario e o Google o recusa.
+    Como `EventoService` trata a agenda como espelho, a falha nao chega a tela.
+
+    Observacao: `Request.add_header` passa a chave por `str.capitalize()`, entao
+    o cabecalho fica guardado como "Content-type". E assim que ele e lido aqui.
+    """
+
+    # --- criar_evento: POST na colecao de eventos ---------------------------
+
+    def test_criar_envia_o_token(self, servico_com_token):
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            mock_urlopen.return_value = _resposta_urlopen({"id": "evento-google-abc"})
+            servico_com_token.criar_evento(SOLICITACAO_EVENTO, "Pátio")
+        requisicao = mock_urlopen.call_args.args[0]
+        assert requisicao.get_header("Authorization") == "Bearer access-token-fake"
+
+    def test_criar_declara_o_corpo_como_json(self, servico_com_token):
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            mock_urlopen.return_value = _resposta_urlopen({"id": "evento-google-abc"})
+            servico_com_token.criar_evento(SOLICITACAO_EVENTO, "Pátio")
+        requisicao = mock_urlopen.call_args.args[0]
+        assert requisicao.get_header("Content-type") == "application/json"
+
+    def test_criar_faz_post_na_colecao_e_devolve_o_id_do_google(self, servico_com_token):
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            mock_urlopen.return_value = _resposta_urlopen({"id": "evento-google-abc"})
+            id_criado = servico_com_token.criar_evento(SOLICITACAO_EVENTO, "Pátio")
+        requisicao = mock_urlopen.call_args.args[0]
+        assert requisicao.get_method() == "POST"
+        assert requisicao.full_url == URL_EVENTOS
+        assert id_criado == "evento-google-abc"
+
+    # --- atualizar_evento: PATCH no evento ----------------------------------
+
+    def test_atualizar_envia_o_token(self, servico_com_token):
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            servico_com_token.atualizar_evento("id-x", SOLICITACAO_EVENTO, "Pátio")
+        requisicao = mock_urlopen.call_args.args[0]
+        assert requisicao.get_header("Authorization") == "Bearer access-token-fake"
+
+    def test_atualizar_declara_o_corpo_como_json(self, servico_com_token):
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            servico_com_token.atualizar_evento("id-x", SOLICITACAO_EVENTO, "Pátio")
+        requisicao = mock_urlopen.call_args.args[0]
+        assert requisicao.get_header("Content-type") == "application/json"
+
+    def test_atualizar_faz_patch_na_url_do_evento(self, servico_com_token):
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            resultado = servico_com_token.atualizar_evento("id-x", SOLICITACAO_EVENTO, "Pátio")
+        requisicao = mock_urlopen.call_args.args[0]
+        assert requisicao.get_method() == "PATCH"
+        assert requisicao.full_url == f"{URL_EVENTOS}/id-x"
+        assert resultado is None
+
+    def test_atualizar_envia_titulo_local_e_datas(self, servico_com_token):
+        """O corpo do PATCH tambem nao era verificado, so o do POST."""
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            servico_com_token.atualizar_evento("id-x", SOLICITACAO_EVENTO, "Auditório")
+        corpo = json.loads(mock_urlopen.call_args.args[0].data.decode("utf-8"))
+        assert corpo == {
+            "summary": SOLICITACAO_EVENTO.nome,
+            "location": "Auditório",
+            "description": SOLICITACAO_EVENTO.descricao,
+            "start": {"dateTime": SOLICITACAO_EVENTO.data_inicio.isoformat()},
+            "end": {"dateTime": SOLICITACAO_EVENTO.data_fim.isoformat()},
+        }
+
+    # --- deletar_evento: DELETE no evento, sem corpo ------------------------
+
+    def test_deletar_envia_o_token(self, servico_com_token):
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            servico_com_token.deletar_evento("id-abc")
+        requisicao = mock_urlopen.call_args.args[0]
+        assert requisicao.get_header("Authorization") == "Bearer access-token-fake"
+
+    def test_deletar_faz_delete_sem_corpo_na_url_do_evento(self, servico_com_token):
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            resultado = servico_com_token.deletar_evento("id-abc")
+        requisicao = mock_urlopen.call_args.args[0]
+        assert requisicao.get_method() == "DELETE"
+        assert requisicao.full_url == f"{URL_EVENTOS}/id-abc"
+        assert requisicao.data is None
+        assert requisicao.get_header("Content-type") is None
+        assert resultado is None
+
+    # --- listar_evento: a leitura tinha a mesma lacuna ----------------------
+
+    def test_listar_envia_o_token_e_pede_json(self, servico_com_token):
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            mock_urlopen.return_value = _resposta_urlopen({"items": []})
+            servico_com_token.listar_evento()
+        requisicao = mock_urlopen.call_args.args[0]
+        assert requisicao.get_header("Authorization") == "Bearer access-token-fake"
+        assert requisicao.get_header("Accept") == "application/json"
+
+
+class TestPrazoNasChamadasAoCalendario:
+    """
+    Toda chamada ao Google tem prazo. Sem `timeout`, uma resposta que nunca
+    chega prende o worker da API indefinidamente. Trocar ou remover o
+    `timeout=10` nao quebrava teste nenhum.
+    """
+
+    @pytest.mark.parametrize(
+        "chamar",
+        [
+            pytest.param(lambda s: s.listar_evento(), id="listar"),
+            pytest.param(lambda s: s.criar_evento(SOLICITACAO_EVENTO, "Pátio"), id="criar"),
+            pytest.param(
+                lambda s: s.atualizar_evento("id-x", SOLICITACAO_EVENTO, "Pátio"), id="atualizar"
+            ),
+            pytest.param(lambda s: s.deletar_evento("id-x"), id="deletar"),
+        ],
+    )
+    def test_chamada_tem_prazo_de_dez_segundos(self, servico_com_token, chamar):
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            mock_urlopen.return_value = _resposta_urlopen({"id": "x", "items": []})
+            chamar(servico_com_token)
+        assert mock_urlopen.call_args.kwargs.get("timeout") == 10
