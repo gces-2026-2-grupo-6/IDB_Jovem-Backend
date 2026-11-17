@@ -134,7 +134,15 @@ jobs:
             -e PORT=5432 \
             -e DEBUG=False \
             -e SECRET_KEY=test-secret-key \
+            -e KEYCLOAK_ISSUER=http://localhost:8765/realms/endpoint \
+            -e KEYCLOAK_JWKS_URL=http://localhost:8765/jwks \
+            -e KEYCLOAK_CLIENT_ID=jovem-endpoint \
             idb-jovem-backend:${{ github.sha }}
+      # As tres variaveis KEYCLOAK_* acima apontam a aplicacao para o emissor
+      # de tokens que os proprios testes sobem (tests/endpoint/conftest.py):
+      # um JWKS em localhost:8765, alcancavel pelo container por causa do
+      # --network host. E o que permite exercitar rota autenticada sem subir
+      # Keycloak — a validacao do token roda inteira, so a chave e de teste.
       - name: Aguardar container estar pronto
         run: |
           for i in $(seq 1 15); do
