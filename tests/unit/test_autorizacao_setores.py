@@ -66,6 +66,53 @@ class TestMatrizAutorizacaoSetores:
         resposta = client.delete("/produto/1")
         assert resposta.status_code == 403
 
+    # 1b. US21 — pedidos de produto (setor Comercial reaproveita admin-produtos)
+    def test_admin_produtos_pode_listar_pedidos(self, client):
+        app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-produtos"])
+        with patch("src.pedido.service.ServicoPedido.listar_pedidos", return_value=[]):
+            resposta = client.get("/pedido/")
+            assert resposta.status_code == 200
+
+    def test_admin_eventos_nao_pode_listar_pedidos(self, client):
+        app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-eventos"])
+        resposta = client.get("/pedido/")
+        assert resposta.status_code == 403
+        assert "produtos" in resposta.json()["detail"]
+
+    def test_admin_produtos_pode_atualizar_status_do_pedido(self, client):
+        app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-produtos"])
+        with patch("src.pedido.service.ServicoPedido.atualizar_status") as mock_atualizar:
+            mock_atualizar.return_value = {
+                "pedido_id": 1,
+                "produto_id": 1,
+                "nome_produto": "Camiseta IDB",
+                "nome_solicitante": "Ana",
+                "contato_solicitante": "ana@exemplo.org",
+                "status": "em_andamento",
+                "resposta_id": None,
+                "criado_em": "2026-11-01T10:00:00Z",
+            }
+            resposta = client.patch("/pedido/1/status", json={"status": "em_andamento"})
+            assert resposta.status_code == 200
+
+    def test_admin_inscricoes_nao_pode_atualizar_status_do_pedido(self, client):
+        app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-inscricoes"])
+        resposta = client.patch("/pedido/1/status", json={"status": "em_andamento"})
+        assert resposta.status_code == 403
+        assert "produtos" in resposta.json()["detail"]
+
+    def test_admin_produtos_pode_sincronizar_pedidos_do_formulario(self, client):
+        app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-produtos"])
+        with patch("src.formulario.service.ServicoFormulario.listar_pedidos", return_value=[]):
+            resposta = client.get("/formulario/produtos/1/pedidos")
+            assert resposta.status_code == 200
+
+    def test_admin_eventos_nao_pode_sincronizar_pedidos_do_formulario(self, client):
+        app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-eventos"])
+        resposta = client.get("/formulario/produtos/1/pedidos")
+        assert resposta.status_code == 403
+        assert "produtos" in resposta.json()["detail"]
+
     # 2. Setor Agenda e Eventos
     def test_admin_eventos_pode_criar_evento(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "admin-eventos"])
@@ -144,6 +191,12 @@ class TestMatrizAutorizacaoSetores:
         with patch("src.produto.service.ServicoProduto.deletar_produto", return_value=None):
             resposta = client.delete("/produto/1")
             assert resposta.status_code == 204
+
+    def test_superadmin_pode_listar_pedidos(self, client):
+        app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "superadmin"])
+        with patch("src.pedido.service.ServicoPedido.listar_pedidos", return_value=[]):
+            resposta = client.get("/pedido/")
+            assert resposta.status_code == 200
 
     def test_superadmin_pode_deletar_evento(self, client):
         app.dependency_overrides[obter_usuario_atual] = usuario_mock(["admin", "superadmin"])
