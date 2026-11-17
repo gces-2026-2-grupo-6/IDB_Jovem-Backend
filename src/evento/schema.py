@@ -1,6 +1,6 @@
 from datetime import datetime, date
 from enum import Enum
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.drive.utils import converter_link_para_proxy, montar_url_download
 
@@ -47,6 +47,13 @@ class BaseEvento(BaseModel):
 
     modalidade: ModalidadeEvento = ModalidadeEvento.PRESENCIAL
     link_transmissao: str | None = None
+
+    # US02: informacoes completas do evento (RF11)
+    vagas: int | None = Field(default=None, ge=0)
+    contato_responsavel: str | None = None
+    valor_investimento: str | None = None
+    link_pagamento: str | None = None
+    link_regulamento: str | None = None
 
     @field_validator("modalidade", mode="before")
     @classmethod
