@@ -88,6 +88,10 @@ CONTRATO = {
         "campos": {"event", "id", "image", "location", "url_download"},
         "obrigatorios": {"event", "id", "image", "location"},
     },
+    "RespostaInstitucional": {
+        "campos": {"missao", "visao", "valores"},
+        "obrigatorios": {"valores"},
+    },
 }
 
 ESQUEMAS = app.openapi()["components"]["schemas"]

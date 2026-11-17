@@ -117,6 +117,10 @@ MATRIZ = {
     ("POST", "/material/"): SUPERADMIN,
     ("PUT", "/material/{material_id}"): SUPERADMIN,
     ("DELETE", "/material/{material_id}"): SUPERADMIN,
+    # US22: missão, visão e valores. A página "Quem somos" é pública; a edição
+    # fica com a superadministradora.
+    ("GET", "/institucional"): PUBLICA,
+    ("PUT", "/institucional"): SUPERADMIN,
     ("GET", "/mapa/endereco"): PUBLICA,
 }
 
