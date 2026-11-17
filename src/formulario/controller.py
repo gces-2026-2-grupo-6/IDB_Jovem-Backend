@@ -8,7 +8,8 @@ from src.formulario.schema import (
     RespostaInscricaoFormulario,
     RespostaInscricaoParticipante,
 )
-from src.security import verificar_permissao_setor, SETOR_INSCRICOES
+from src.pedido.schema import RespostaPedido
+from src.security import verificar_permissao_setor, SETOR_INSCRICOES, SETOR_PRODUTOS
 
 
 router = APIRouter(prefix="/formulario", tags=["Formulario"])
@@ -52,6 +53,31 @@ def listar_participantes(
     """Inscritos no formulario de participantes, separado do voluntariado (US09)."""
     try:
         return servico.listar_participantes(db, evento_id)
+
+    except ValueError as erro:
+        raise HTTPException(status_code=404, detail=str(erro)) from erro
+
+    except RuntimeError as erro:
+        raise HTTPException(status_code=502, detail=str(erro)) from erro
+
+
+@router.get(
+    "/produtos/{produto_id}/pedidos",
+    response_model=list[RespostaPedido],
+)
+def listar_pedidos(
+    produto_id: int,
+    db: Session = Depends(obter_banco),
+    servico: ServicoFormulario = Depends(get_servico),
+    _: dict = Depends(verificar_permissao_setor(SETOR_PRODUTOS)),
+):
+    """
+    US21: visitante registra o pedido/interesse pelo formulario do Google
+    ligado ao produto; o setor Produtos/Comercial sincroniza e acompanha
+    aqui, no mesmo mecanismo ja usado para inscricoes (US09).
+    """
+    try:
+        return servico.listar_pedidos(db, produto_id)
 
     except ValueError as erro:
         raise HTTPException(status_code=404, detail=str(erro)) from erro

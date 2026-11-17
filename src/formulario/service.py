@@ -5,6 +5,7 @@ from src.formulario.schema import (
     RespostaInscricaoFormulario,
     RespostaInscricaoParticipante,
 )
+from src.pedido.schema import RespostaPedido
 
 
 class ServicoFormulario:
@@ -25,3 +26,11 @@ class ServicoFormulario:
         evento_id: int,
     ) -> list[RespostaInscricaoParticipante]:
         return self.repositorio.listar_participantes(db, evento_id)
+
+    def listar_pedidos(
+        self,
+        db: Session,
+        produto_id: int,
+    ) -> list[RespostaPedido]:
+        """US21: pedidos/interesses registrados no formulario do produto."""
+        return self.repositorio.listar_pedidos(db, produto_id)

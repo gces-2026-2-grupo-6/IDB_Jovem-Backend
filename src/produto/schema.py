@@ -8,6 +8,8 @@ class BaseProduto(BaseModel):
     descricao: str | None = None
     link_produto: str | None = None
     link_imagem: str | None = None
+    # US21: formulario do Google onde o visitante registra o pedido/interesse.
+    formulario_pedido_link: str | None = None
 
 
 class SolicitacaoProduto(BaseProduto):

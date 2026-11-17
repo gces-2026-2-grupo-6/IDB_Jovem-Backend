@@ -13,6 +13,7 @@ import src.banda_palestrante.model
 import src.drive.model
 import src.evento.model
 import src.produto.model
+import src.pedido.model
 import src.voluntario.models
 import src.lider.model
 import src.participante.models

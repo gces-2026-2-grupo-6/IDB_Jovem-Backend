@@ -12,6 +12,9 @@ from src.formulario.schema import (
 )
 from src.auth.service import ServicoAuth
 from src.participante.models import Inscricao, Participante
+from src.pedido.model import Pedido
+from src.pedido.schema import RespostaPedido
+from src.produto.model import Produto
 from src.voluntario.models import Trabalha, Voluntario
 
 STATUS_PENDENTE = "pendente"
@@ -102,6 +105,12 @@ class RepositorioFormulario:
         if not evento:
             raise ValueError("Evento nao encontrado")
         return evento
+
+    def _buscar_produto(self, db: Session, produto_id: int) -> Produto:
+        produto = db.query(Produto).filter(Produto.produto_id == produto_id).first()
+        if not produto:
+            raise ValueError("Produto nao encontrado")
+        return produto
 
     def _salvar_voluntario(
         self,
@@ -268,6 +277,92 @@ class RepositorioFormulario:
                 resposta_id,
             ),
         )
+
+    def _garantir_pedido(
+        self,
+        db: Session,
+        produto_id: int,
+        nome: str,
+        contato: str,
+        resposta_id: str,
+    ) -> Pedido:
+        """
+        US21: um pedido por resposta do formulario. Diferente do voluntario e
+        do participante, o pedido nao reaproveita um cadastro de pessoa entre
+        produtos — o solicitante fica guardado no proprio pedido.
+        """
+        pedido = (
+            db.query(Pedido)
+            .filter(Pedido.produto_id == produto_id, Pedido.resposta_id == resposta_id)
+            .first()
+        )
+        if pedido:
+            pedido.nome_solicitante = nome
+            pedido.contato_solicitante = contato
+            db.add(pedido)
+            return pedido
+        pedido = Pedido(
+            produto_id=produto_id,
+            nome_solicitante=nome,
+            contato_solicitante=contato,
+            resposta_id=resposta_id,
+        )
+        db.add(pedido)
+        db.flush()
+        return pedido
+
+    def _montar_pedido(
+        self,
+        contexto: dict,
+        resposta: dict,
+    ) -> RespostaPedido | None:
+        resposta_id = resposta.get("responseId", "")
+        respostas_campos = resposta.get("answers", {})
+        nome = self._extrair_texto_resposta(respostas_campos, contexto["id_nome"])
+        contato = self._extrair_texto_resposta(respostas_campos, contexto["id_email"])
+        if not nome or not contato or not resposta_id:
+            return None
+        produto = contexto["produto"]
+        pedido = self._garantir_pedido(
+            contexto["db"],
+            produto.produto_id,
+            nome,
+            contato,
+            resposta_id,
+        )
+        return RespostaPedido(
+            pedido_id=pedido.pedido_id,
+            produto_id=pedido.produto_id,
+            nome_produto=produto.nome,
+            nome_solicitante=pedido.nome_solicitante,
+            contato_solicitante=pedido.contato_solicitante,
+            status=pedido.status,
+            resposta_id=pedido.resposta_id,
+            criado_em=pedido.criado_em,
+        )
+
+    def listar_pedidos(
+        self,
+        db: Session,
+        produto_id: int,
+    ) -> list[RespostaPedido]:
+        """US21: pedidos/interesses registrados no formulario do produto."""
+        produto = self._buscar_produto(db, produto_id)
+        if not produto.formulario_pedido_link:
+            raise ValueError("Produto sem formulario de pedidos configurado")
+
+        # `_preparar_contexto` nasceu para evento; a chave "evento" aqui
+        # guarda o produto — `_montar_pedido` le o objeto certo por "produto".
+        contexto = self._preparar_contexto(db, produto, produto.formulario_pedido_link)
+        contexto["produto"] = produto
+
+        lista: list[RespostaPedido] = []
+        for resposta in contexto["respostas"]:
+            pedido = self._montar_pedido(contexto, resposta)
+            if pedido:
+                lista.append(pedido)
+        db.commit()
+        return lista
 
     def listar_inscricoes(
         self,

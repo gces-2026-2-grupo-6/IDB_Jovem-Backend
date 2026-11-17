@@ -41,8 +41,21 @@ CONTRATO = {
         "obrigatorios": {"cargo", "lider_id", "nome"},
     },
     "RespostaProduto": {
-        "campos": {"descricao", "link_imagem", "link_produto", "nome", "produto_id"},
+        "campos": {
+            "descricao", "formulario_pedido_link", "link_imagem", "link_produto",
+            "nome", "produto_id",
+        },
         "obrigatorios": {"nome", "produto_id"},
+    },
+    "RespostaPedido": {
+        "campos": {
+            "contato_solicitante", "criado_em", "nome_produto", "nome_solicitante",
+            "pedido_id", "produto_id", "resposta_id", "status",
+        },
+        "obrigatorios": {
+            "contato_solicitante", "criado_em", "nome_produto", "nome_solicitante",
+            "pedido_id", "produto_id", "status",
+        },
     },
     "RespostaBandaPalestrante": {
         "campos": {"link_foto", "nome", "participante_id", "profissao"},
