@@ -343,3 +343,28 @@ class TestCabecalhosNasChamadasAoCalendario:
         requisicao = mock_urlopen.call_args.args[0]
         assert requisicao.get_header("Authorization") == "Bearer access-token-fake"
         assert requisicao.get_header("Accept") == "application/json"
+
+
+class TestPrazoNasChamadasAoCalendario:
+    """
+    Toda chamada ao Google tem prazo. Sem `timeout`, uma resposta que nunca
+    chega prende o worker da API indefinidamente. Trocar ou remover o
+    `timeout=10` nao quebrava teste nenhum.
+    """
+
+    @pytest.mark.parametrize(
+        "chamar",
+        [
+            pytest.param(lambda s: s.listar_evento(), id="listar"),
+            pytest.param(lambda s: s.criar_evento(SOLICITACAO_EVENTO, "Pátio"), id="criar"),
+            pytest.param(
+                lambda s: s.atualizar_evento("id-x", SOLICITACAO_EVENTO, "Pátio"), id="atualizar"
+            ),
+            pytest.param(lambda s: s.deletar_evento("id-x"), id="deletar"),
+        ],
+    )
+    def test_chamada_tem_prazo_de_dez_segundos(self, servico_com_token, chamar):
+        with patch("src.calendario.service.urlopen") as mock_urlopen:
+            mock_urlopen.return_value = _resposta_urlopen({"id": "x", "items": []})
+            chamar(servico_com_token)
+        assert mock_urlopen.call_args.kwargs.get("timeout") == 10
