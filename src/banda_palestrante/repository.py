@@ -1,5 +1,6 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from src.banda_palestrante.model import BandaPalestrante
+from src.banda_palestrante.model import BandaPalestrante, Participa
 
 
 class RepositorioBandaPalestrante:
@@ -27,6 +28,18 @@ class RepositorioBandaPalestrante:
         self.db.refresh(participante)
         return participante
 
+    def contar_eventos_vinculados(self, participante_id: int) -> int:
+        return (
+            self.db.query(Participa)
+            .filter(Participa.participante_id == participante_id)
+            .count()
+        )
+
     def deletar(self, participante: BandaPalestrante) -> None:
         self.db.delete(participante)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError:
+            # Devolve a sessao a um estado usavel antes de repassar o erro.
+            self.db.rollback()
+            raise

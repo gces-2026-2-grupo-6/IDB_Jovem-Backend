@@ -5,6 +5,7 @@ from src.banda_palestrante.controller import (
     criar_banda_palestrante, listar_banda_palestrantes,
     buscar_banda_palestrante, deletar_banda_palestrante, get_servico,
 )
+from src.banda_palestrante.service import ConvidadoVinculadoError
 
 
 class TestBandaPalestranteController:
@@ -43,6 +44,14 @@ class TestBandaPalestranteController:
         mock_servico = MagicMock()
         deletar_banda_palestrante(participante_id=1, servico=mock_servico, _={})
         mock_servico.deletar_banda_palestrante.assert_called_once_with(1)
+
+    def test_deletar_convidado_vinculado_responde_409(self):
+        mock_servico = MagicMock()
+        mock_servico.deletar_banda_palestrante.side_effect = ConvidadoVinculadoError("vinculado")
+        with pytest.raises(HTTPException) as exc:
+            deletar_banda_palestrante(participante_id=1, servico=mock_servico, _={})
+        assert exc.value.status_code == 409
+        assert exc.value.detail == "vinculado"
 
     def test_deletar_banda_palestrante_nao_encontrado(self):
         mock_servico = MagicMock()

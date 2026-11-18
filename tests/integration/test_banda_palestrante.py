@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import MagicMock
 
 from src.banda_palestrante.controller import router, get_servico
+from src.banda_palestrante.service import ConvidadoVinculadoError
 from src.security import obter_usuario_atual
 
 
@@ -134,3 +135,11 @@ class TestDeletarBandaPalestrante:
         resposta = c.delete("/banda-palestrante/999")
         assert resposta.status_code == 404
         assert "Participante não encontrado" in resposta.json()["detail"]
+
+    def test_deletar_convidado_vinculado_responde_409(self, client):
+        c, servico = client
+        mensagem = "Este convidado está vinculado a 1 evento. Remova-o da programação antes de excluir."
+        servico.deletar_banda_palestrante.side_effect = ConvidadoVinculadoError(mensagem)
+        resposta = c.delete("/banda-palestrante/1")
+        assert resposta.status_code == 409
+        assert resposta.json()["detail"] == mensagem

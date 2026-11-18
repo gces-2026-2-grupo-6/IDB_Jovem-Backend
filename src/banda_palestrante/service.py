@@ -1,6 +1,20 @@
+from sqlalchemy.exc import IntegrityError
+
 from src.banda_palestrante.model import BandaPalestrante
 from src.banda_palestrante.repository import RepositorioBandaPalestrante
 from src.banda_palestrante.schema import SolicitacaoBandaPalestrante
+
+
+class ConvidadoVinculadoError(ValueError):
+    """US06 (D09): convidado vinculado a evento nao pode ser excluido."""
+
+
+def _mensagem_vinculado(quantidade: int) -> str:
+    eventos = "1 evento" if quantidade == 1 else f"{quantidade} eventos"
+    return (
+        f"Este convidado está vinculado a {eventos}. "
+        "Remova-o da programação antes de excluir."
+    )
 
 
 class ServicoBandaPalestrante:
@@ -35,4 +49,15 @@ class ServicoBandaPalestrante:
 
     def deletar_banda_palestrante(self, participante_id: int):
         participante = self.buscar_banda_palestrante(participante_id)
-        self.repositorio.deletar(participante)
+
+        # D09: a exclusao e recusada enquanto houver vinculo com evento. Apagar
+        # o vinculo junto mudaria a programacao de um evento sem aviso.
+        vinculos = self.repositorio.contar_eventos_vinculados(participante_id)
+        if vinculos > 0:
+            raise ConvidadoVinculadoError(_mensagem_vinculado(vinculos))
+
+        try:
+            self.repositorio.deletar(participante)
+        except IntegrityError as erro:
+            # Vinculo criado entre a contagem e a exclusao.
+            raise ConvidadoVinculadoError(_mensagem_vinculado(1)) from erro
