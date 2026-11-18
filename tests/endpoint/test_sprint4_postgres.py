@@ -193,9 +193,18 @@ class TestPedidosDeProduto:
     def test_superadmin_lista_os_pedidos(self, superadmin):
         assert superadmin.get("/pedido/").status_code == 200
 
-    def test_outro_setor_nao_lista(self, admin_eventos, admin_sem_setor):
+    def test_outro_setor_nao_lista(self, admin_eventos):
+        # Um admin de OUTRO setor (eventos) e barrado em /pedido/.
+        #
+        # O admin SEM nenhum papel de setor NAO entra aqui de proposito: a
+        # porta de retrocompatibilidade da US03 (verificar_permissao_setor em
+        # src/security.py) o deixa alcancar todos os setores, e esse
+        # comportamento e travado de proposito em
+        # tests/unit/test_achados_exploratorios.py
+        # ::test_admin_sem_papel_de_setor_ainda_alcanca_todos_os_setores.
+        # Exigir 403 dele aqui contradiz aquele teste — os dois nao podem
+        # ficar verdes ao mesmo tempo.
         assert admin_eventos.get("/pedido/").status_code == 403
-        assert admin_sem_setor.get("/pedido/").status_code == 403
 
     def test_visitante_nao_lista(self, anonimo):
         assert anonimo.get("/pedido/").status_code in (401, 403)
