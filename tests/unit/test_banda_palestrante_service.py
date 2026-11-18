@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import MagicMock
-from src.banda_palestrante.service import ServicoBandaPalestrante
+from sqlalchemy.exc import IntegrityError
+
+from src.banda_palestrante.service import ConvidadoVinculadoError, ServicoBandaPalestrante
 from src.banda_palestrante.model import BandaPalestrante
 from src.banda_palestrante.schema import SolicitacaoBandaPalestrante
 
@@ -67,8 +69,26 @@ def test_atualizar_banda_palestrante_nao_encontrado(servico, mock_repositorio):
 def test_deletar_banda_palestrante_sucesso(servico, mock_repositorio):
     participante = BandaPalestrante(participante_id=1)
     mock_repositorio.buscar_por_id.return_value = participante
+    mock_repositorio.contar_eventos_vinculados.return_value = 0
     servico.deletar_banda_palestrante(1)
     mock_repositorio.deletar.assert_called_once_with(participante)
+
+
+@pytest.mark.parametrize("vinculos, trecho", [(1, "1 evento."), (3, "3 eventos.")])
+def test_deletar_convidado_vinculado_recusa_sem_apagar(servico, mock_repositorio, vinculos, trecho):
+    mock_repositorio.buscar_por_id.return_value = BandaPalestrante(participante_id=1)
+    mock_repositorio.contar_eventos_vinculados.return_value = vinculos
+    with pytest.raises(ConvidadoVinculadoError, match=trecho):
+        servico.deletar_banda_palestrante(1)
+    mock_repositorio.deletar.assert_not_called()
+
+
+def test_deletar_convidado_com_vinculo_concorrente_vira_conflito(servico, mock_repositorio):
+    mock_repositorio.buscar_por_id.return_value = BandaPalestrante(participante_id=1)
+    mock_repositorio.contar_eventos_vinculados.return_value = 0
+    mock_repositorio.deletar.side_effect = IntegrityError("DELETE", {}, Exception("fk"))
+    with pytest.raises(ConvidadoVinculadoError):
+        servico.deletar_banda_palestrante(1)
 
 
 def test_deletar_banda_palestrante_nao_encontrado(servico, mock_repositorio):

@@ -251,3 +251,38 @@ class TestPedidosDeProduto:
         criado = admin_produtos.post("/produto/", json={"nome": "Efemero de endpoint"}).json()
 
         assert superadmin.delete(f"/produto/{criado['produto_id']}").status_code == 204
+
+
+# ------------------------------------------------------------------ US06 (D09)
+
+
+class TestExclusaoDeConvidadoVinculado:
+    """D09 — no Postgres a chave de `participa` e aplicada de verdade: sem o
+    tratamento, o IntegrityError derrubava a conexao e a tela mostrava
+    "Network Error"."""
+
+    def test_convidado_vinculado_responde_409_e_continua_cadastrado(self, superadmin):
+        evento = superadmin.post("/evento/", json=_evento_online()).json()
+        convidado = superadmin.post("/banda-palestrante/", json={"nome": "Banda de endpoint"}).json()
+        vinculo = f"/evento/{evento['evento_id']}/participantes/{convidado['participante_id']}"
+        try:
+            assert superadmin.post(vinculo).status_code == 201
+
+            resposta = superadmin.delete(f"/banda-palestrante/{convidado['participante_id']}")
+
+            assert resposta.status_code == 409, resposta.text
+            assert "vinculado a 1 evento" in resposta.json()["detail"]
+            relido = superadmin.get(f"/banda-palestrante/{convidado['participante_id']}")
+            assert relido.status_code == 200
+            vinculados = superadmin.get(f"/evento/{evento['evento_id']}/participantes").json()
+            assert [c["participante_id"] for c in vinculados] == [convidado["participante_id"]]
+        finally:
+            superadmin.delete(f"/evento/{evento['evento_id']}")
+            superadmin.delete(f"/banda-palestrante/{convidado['participante_id']}")
+
+    def test_sem_vinculo_a_exclusao_continua_funcionando(self, superadmin):
+        convidado = superadmin.post("/banda-palestrante/", json={"nome": "Banda avulsa"}).json()
+
+        resposta = superadmin.delete(f"/banda-palestrante/{convidado['participante_id']}")
+
+        assert resposta.status_code == 204
