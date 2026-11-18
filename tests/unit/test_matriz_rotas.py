@@ -77,6 +77,11 @@ MATRIZ = {
     ("POST", "/produto/"): SETOR_PRODUTOS,
     ("PUT", "/produto/{produto_id}"): SETOR_PRODUTOS,
     ("DELETE", "/produto/{produto_id}"): SUPERADMIN,
+    # US21: pedidos/interesses de produto. "Comercial" ainda e o setor de
+    # produtos no Keycloak — nao existe papel admin-comercial.
+    ("GET", "/pedido/"): SETOR_PRODUTOS,
+    ("PATCH", "/pedido/{pedido_id}/status"): SETOR_PRODUTOS,
+    ("GET", "/formulario/produtos/{produto_id}/pedidos"): SETOR_PRODUTOS,
     # Voluntarios e inscricoes
     ("GET", "/voluntarios/"): SETOR_INSCRICOES,
     ("GET", "/voluntarios/{voluntario_id}"): SETOR_INSCRICOES,
@@ -112,6 +117,10 @@ MATRIZ = {
     ("POST", "/material/"): SUPERADMIN,
     ("PUT", "/material/{material_id}"): SUPERADMIN,
     ("DELETE", "/material/{material_id}"): SUPERADMIN,
+    # US22: missão, visão e valores. A página "Quem somos" é pública; a edição
+    # fica com a superadministradora.
+    ("GET", "/institucional"): PUBLICA,
+    ("PUT", "/institucional"): SUPERADMIN,
     ("GET", "/mapa/endereco"): PUBLICA,
 }
 

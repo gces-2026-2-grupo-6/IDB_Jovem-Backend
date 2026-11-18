@@ -5,6 +5,7 @@ from src.produto.controller import (
     criar_produto, listar_produtos, buscar_produto,
     atualizar_produto, deletar_produto, get_servico,
 )
+from src.produto.service import ProdutoComPedidosError
 
 
 class TestProdutoController:
@@ -67,3 +68,13 @@ class TestProdutoController:
         with pytest.raises(HTTPException) as exc:
             deletar_produto(produto_id=1, servico=mock_servico, _={})
         assert exc.value.status_code == 404
+
+    def test_deletar_produto_com_pedidos_vira_409(self):
+        """US21: historico de pedidos preservado — exclusao recusada, nao apagada."""
+        mock_servico = MagicMock()
+        mock_servico.deletar_produto.side_effect = ProdutoComPedidosError(
+            "Produto possui pedidos registrados e não pode ser excluído."
+        )
+        with pytest.raises(HTTPException) as exc:
+            deletar_produto(produto_id=1, servico=mock_servico, _={})
+        assert exc.value.status_code == 409
