@@ -25,11 +25,13 @@ from src.main import app
 CONTRATO = {
     "RespostaEvento": {
         "campos": {
-            "calendario_evento_id", "data_fim", "data_inicio", "datas", "descricao",
-            "evento_id", "formulario_link", "formulario_participante_link",
-            "link_galeria", "link_imagem", "link_transmissao", "local_latitude",
-            "local_longitude", "modalidade", "nome", "nome_local", "nova_data",
-            "situacao", "tipo_evento",
+            "calendario_evento_id", "contato_responsavel", "data_fim", "data_inicio",
+            "datas", "descricao", "evento_id", "formulario_link",
+            "formulario_participante_link", "link_galeria", "link_imagem",
+            "link_pagamento", "link_regulamento", "link_transmissao",
+            "local_latitude", "local_longitude", "modalidade", "nome",
+            "nome_local", "nova_data", "situacao", "tipo_evento", "vagas",
+            "valor_investimento",
         },
         "obrigatorios": {"data_fim", "data_inicio", "evento_id", "nome"},
     },

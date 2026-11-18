@@ -38,6 +38,12 @@ class Evento(Base):
     nova_data            = Column(DateTime(timezone=True), nullable=True)
     modalidade           = Column(Text, nullable=False, default="presencial", server_default=text("'presencial'"))
     link_transmissao     = Column(Text, nullable=True)
+    # US02: informacoes completas do evento (RF11)
+    vagas                = Column(Integer, nullable=True)
+    contato_responsavel  = Column(Text, nullable=True)
+    valor_investimento   = Column(Text, nullable=True)
+    link_pagamento       = Column(Text, nullable=True)
+    link_regulamento     = Column(Text, nullable=True)
 
 class FotoExcluidaEvento(Base):
     __tablename__ = "evento_foto_excluida"
