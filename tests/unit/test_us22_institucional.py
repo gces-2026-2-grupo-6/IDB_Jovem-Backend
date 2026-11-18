@@ -13,7 +13,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from sqlalchemy import create_engine
+from sqlalchemy import Column, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -23,6 +23,7 @@ from src.institucional.repository import RepositorioInstitucional
 from src.institucional.schema import SolicitacaoInstitucional
 from src.institucional.service import ServicoInstitucional
 from src.security import obter_usuario_atual
+from tests.unit.migracoes_teste import operacoes
 
 SUPERADMIN = {"sub": "super-1", "realm_access": {"roles": ["superadmin"]}}
 ADMIN = {"sub": "admin-1", "realm_access": {"roles": ["admin"]}}
@@ -188,3 +189,104 @@ def test_injecao_do_servico_usa_o_banco_da_requisicao():
     db = MagicMock()
 
     assert get_servico(db).repositorio.db is db
+
+
+# ------------------------------------------------- autorização por setor
+
+
+class TestAutorizacaoPorSetor:
+    """
+    CA "editável pelo painel" — e só pela superadministradora. A matriz de
+    rotas registra a exigência; aqui se confere a recusa para cada papel de
+    setor da US03 e para quem não manda token, e que a recusa não grava nada.
+    """
+
+    @pytest.mark.parametrize(
+        "papeis",
+        [
+            pytest.param(["admin", "admin-eventos"], id="admin_eventos"),
+            pytest.param(["admin", "admin-produtos"], id="admin_produtos"),
+            pytest.param(["admin", "admin-inscricoes"], id="admin_inscricoes"),
+            pytest.param(
+                ["admin", "admin-eventos", "admin-produtos", "admin-inscricoes"],
+                id="todos_os_setores",
+            ),
+        ],
+    )
+    def test_admin_de_setor_nao_edita(self, servico, papeis):
+        usuario = {"sub": "admin-2", "realm_access": {"roles": papeis}}
+
+        resposta = _client(servico, usuario).put(
+            "/institucional", json={"missao": "Tentativa"}
+        )
+
+        assert resposta.status_code == 403
+        assert servico.obter_conteudo().missao is None
+
+    def test_sem_token_nao_edita(self, servico):
+        resposta = _client(servico).put("/institucional", json={"missao": "Tentativa"})
+
+        assert resposta.status_code in (401, 403)
+        assert servico.obter_conteudo().missao is None
+
+    def test_recusa_nao_apaga_o_que_ja_estava_salvo(self, servico):
+        servico.atualizar_conteudo(SolicitacaoInstitucional(missao="Original"))
+
+        _client(servico, ADMIN).put("/institucional", json={"missao": "Trocada"})
+
+        assert servico.obter_conteudo().missao == "Original"
+
+
+class TestConteudoSalvo:
+
+    def test_ordem_dos_valores_e_preservada(self, servico):
+        valores = ["Serviço", "Fé", "Comunhão", "Excelência"]
+
+        servico.atualizar_conteudo(SolicitacaoInstitucional(valores=valores))
+
+        assert servico.obter_conteudo().valores == valores
+
+    def test_gravacao_registra_a_data_de_atualizacao(self, servico, banco):
+        servico.atualizar_conteudo(SolicitacaoInstitucional(missao="Inspirar"))
+
+        assert banco.get(Institucional, 1).atualizado_em is not None
+
+    def test_registro_unico_usa_o_id_1(self, servico, banco):
+        servico.atualizar_conteudo(SolicitacaoInstitucional(visao="Ser referência"))
+
+        assert [linha.institucional_id for linha in banco.query(Institucional)] == [1]
+
+
+# ----------------------------------------------------------------- migration
+
+
+REVISAO_US22 = "d3e5b8a1c4f6"
+
+
+class TestMigrationUS22:
+
+    def _tabela_criada(self):
+        op = operacoes(REVISAO_US22)
+        chamada = op.create_table.call_args
+        nome, *elementos = chamada.args
+        colunas = {e.name: e for e in elementos if isinstance(e, Column)}
+        return nome, colunas
+
+    def test_cria_a_tabela_com_as_colunas_do_modelo(self):
+        nome, colunas = self._tabela_criada()
+
+        assert nome == Institucional.__tablename__
+        assert set(colunas) == set(Institucional.__table__.c.keys())
+
+    def test_missao_e_visao_opcionais_e_valores_obrigatorio(self):
+        """A página começa sem conteúdo; a lista de valores nunca é nula."""
+        _, colunas = self._tabela_criada()
+
+        assert colunas["missao"].nullable is True
+        assert colunas["visao"].nullable is True
+        assert colunas["valores"].nullable is False
+        assert colunas["atualizado_em"].server_default is not None
+
+    def test_migration_e_reversivel(self):
+        op = operacoes(REVISAO_US22, "downgrade")
+        op.drop_table.assert_called_once_with(Institucional.__tablename__)

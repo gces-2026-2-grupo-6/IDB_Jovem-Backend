@@ -4,14 +4,18 @@ status e o join usado pela listagem. Mesmo molde de test_exclusao_com_vinculo.py
 — SQLite com PRAGMA foreign_keys=ON, porque o Postgres aplica isso sempre.
 """
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy import create_engine, event as sqlalchemy_event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
+from src.formulario.repository import RepositorioFormulario
 from src.pedido.model import Pedido
 from src.pedido.repository import RepositorioPedido
+from src.pedido.schema import SolicitacaoStatusPedido
+from src.pedido.service import ServicoPedido
 from src.produto.model import Produto
 
 
@@ -128,3 +132,97 @@ def test_contar_por_produto_bate_com_os_vinculos_reais(sessao):
     assert repositorio.contar_por_produto(1) == 2
     assert repositorio.contar_por_produto(2) == 1
     assert repositorio.contar_por_produto(3) == 0
+
+
+# ---------------------------------------------------------------- ressincronizar
+#
+# Limite registrado na Sprint 4: "a ressincronizacao preserva a situacao do
+# pedido, porque o codigo so atualiza o nome e o contato. Mas nenhum teste
+# afirma isso explicitamente." Aqui a sincronizacao roda inteira sobre o banco
+# (SQLite com chaves ligadas); so as chamadas HTTP ao Google sao simuladas.
+
+LINK_FORMS = "https://docs.google.com/forms/d/ped123/edit"
+
+FORMULARIO_GOOGLE = {
+    "items": [
+        {"title": "Nome", "questionItem": {"question": {"questionId": "q-nome"}}},
+        {"title": "Email", "questionItem": {"question": {"questionId": "q-email"}}},
+    ]
+}
+
+
+def _resposta_google(resposta_id, nome, contato):
+    return {
+        "responseId": resposta_id,
+        "answers": {
+            "q-nome": {"textAnswers": {"answers": [{"value": nome}]}},
+            "q-email": {"textAnswers": {"answers": [{"value": contato}]}},
+        },
+    }
+
+
+@pytest.fixture
+def sincronizar(sessao):
+    """Roda a sincronizacao real do produto 1 com as respostas informadas."""
+    produto = Produto(produto_id=1, nome="Camiseta IDB", formulario_pedido_link=LINK_FORMS)
+    sessao.add(produto)
+    sessao.commit()
+
+    with patch("src.formulario.repository.ServicoAuth"):
+        repositorio = RepositorioFormulario()
+    repositorio._obter_token_valido = MagicMock(return_value="token")
+    repositorio._buscar_formulario = MagicMock(return_value=FORMULARIO_GOOGLE)
+
+    def _executar(*respostas):
+        repositorio._buscar_respostas = MagicMock(return_value=list(respostas))
+        return repositorio.listar_pedidos(sessao, 1)
+
+    return _executar
+
+
+def test_primeira_sincronizacao_grava_um_pedido_pendente_por_resposta(sessao, sincronizar):
+    lista = sincronizar(
+        _resposta_google("r-1", "Ana", "ana@exemplo.org"),
+        _resposta_google("r-2", "Bia", "bia@exemplo.org"),
+    )
+
+    assert [p.nome_solicitante for p in lista] == ["Ana", "Bia"]
+    assert {p.status for p in lista} == {"pendente"}
+    assert sessao.query(Pedido).count() == 2
+
+
+def test_ressincronizar_preserva_a_situacao_dada_pelo_setor(sessao, sincronizar):
+    """US21 CA2: a situacao e do setor; o formulario so traz quem pediu."""
+    (pedido,) = sincronizar(_resposta_google("r-1", "Ana", "ana@exemplo.org"))
+    ServicoPedido(RepositorioPedido(sessao)).atualizar_status(
+        pedido.pedido_id, SolicitacaoStatusPedido(status="concluido")
+    )
+
+    (ressincronizado,) = sincronizar(
+        _resposta_google("r-1", "Ana Souza", "ana@novo.org")
+    )
+
+    assert ressincronizado.pedido_id == pedido.pedido_id
+    assert ressincronizado.status == "concluido"
+    assert ressincronizado.nome_solicitante == "Ana Souza"
+    assert ressincronizado.contato_solicitante == "ana@novo.org"
+    sessao.expire_all()
+    gravado = sessao.get(Pedido, pedido.pedido_id)
+    assert gravado.status == "concluido"
+    assert sessao.query(Pedido).count() == 1
+
+
+def test_resposta_nova_nao_mexe_nos_pedidos_ja_tratados(sessao, sincronizar):
+    (antigo,) = sincronizar(_resposta_google("r-1", "Ana", "ana@exemplo.org"))
+    ServicoPedido(RepositorioPedido(sessao)).atualizar_status(
+        antigo.pedido_id, SolicitacaoStatusPedido(status="cancelado")
+    )
+
+    lista = sincronizar(
+        _resposta_google("r-1", "Ana", "ana@exemplo.org"),
+        _resposta_google("r-2", "Bia", "bia@exemplo.org"),
+    )
+
+    situacoes = {p.resposta_id: p.status for p in lista}
+    assert situacoes == {"r-1": "cancelado", "r-2": "pendente"}
+    assert sessao.query(Pedido).count() == 2
