@@ -163,3 +163,17 @@ def admin_sem_setor(emissor, superadmin):
 def anonimo():
     with httpx.Client(base_url=BASE_URL, timeout=30) as cliente:
         yield cliente
+
+
+@pytest.fixture(scope="session")
+def admin_produtos(emissor, superadmin):
+    """Administrador do setor de produtos (US03), que tambem atende a US21."""
+    with _cliente(emissor, ["admin", "admin-produtos"]) as cliente:
+        yield cliente
+
+
+@pytest.fixture(scope="session")
+def admin_eventos(emissor, superadmin):
+    """Administrador do setor de eventos (US03)."""
+    with _cliente(emissor, ["admin", "admin-eventos"]) as cliente:
+        yield cliente
