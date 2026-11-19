@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from src.database import obter_banco
 from src.security import verificar_roles, verificar_permissao_setor, SETOR_EVENTOS
 from src.banda_palestrante.repository import RepositorioBandaPalestrante
-from src.banda_palestrante.service import ServicoBandaPalestrante
+from src.banda_palestrante.service import ConvidadoVinculadoError, ServicoBandaPalestrante
 from src.banda_palestrante.schema import (
     SolicitacaoBandaPalestrante,
     RespostaBandaPalestrante,
@@ -65,7 +65,14 @@ def atualizar_banda_palestrante(
         raise HTTPException(status_code=404, detail=str(erro)) from erro
 
 
-@router.delete("/{participante_id}", status_code=204)
+@router.delete(
+    "/{participante_id}",
+    status_code=204,
+    responses={
+        404: {"description": "Banda ou palestrante não encontrado."},
+        409: {"description": "Convidado vinculado a evento; remova o vínculo antes (US06)."},
+    },
+)
 def deletar_banda_palestrante(
     participante_id: int,
     servico: ServicoBandaPalestrante = Depends(get_servico),
@@ -73,6 +80,9 @@ def deletar_banda_palestrante(
 ):
     try:
         servico.deletar_banda_palestrante(participante_id)
+
+    except ConvidadoVinculadoError as erro:
+        raise HTTPException(status_code=409, detail=str(erro)) from erro
 
     except ValueError as erro:
         raise HTTPException(status_code=404, detail=str(erro)) from erro
