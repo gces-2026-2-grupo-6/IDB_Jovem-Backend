@@ -38,19 +38,9 @@ class TestRepositorioFormulario:
         with pytest.raises(RuntimeError, match="Falha automatica ao renovar credenciais"):
             repo._obter_token_valido()
 
-    @patch("src.formulario.repository.ServicoAuth")
-    def test_extrair_formulario_id_link_valido(self, mock_auth_class):
-        repo = RepositorioFormulario()
-        resultado = repo._extrair_formulario_id_link(
-            "https://docs.google.com/forms/d/abc123/edit"
-        )
-        assert resultado == "abc123"
-
-    @patch("src.formulario.repository.ServicoAuth")
-    def test_extrair_formulario_id_link_invalido(self, mock_auth_class):
-        repo = RepositorioFormulario()
-        resultado = repo._extrair_formulario_id_link("http://example.com")
-        assert resultado is None
+    # `_extrair_formulario_id_link` saiu do repositorio: a logica virou
+    # `leitura.extrair_formulario_id`, que recusa cada formato errado com a sua
+    # mensagem em vez de devolver None. Coberta em test_formulario_leitura.py.
 
     @patch("src.formulario.repository.ServicoAuth")
     def test_definir_formulario_id_valido(self, mock_auth_class):
@@ -63,7 +53,7 @@ class TestRepositorioFormulario:
     @patch("src.formulario.repository.ServicoAuth")
     def test_definir_formulario_id_invalido(self, mock_auth_class):
         repo = RepositorioFormulario()
-        with pytest.raises(ValueError, match="Use o link completo do Forms"):
+        with pytest.raises(ValueError, match="Nao reconheci esse link"):
             repo._definir_formulario_id("http://example.com")
 
     @patch("src.formulario.repository.ServicoAuth")
@@ -159,26 +149,9 @@ class TestRepositorioFormulario:
         mapa = repo._mapear_perguntas({})
         assert mapa == {}
 
-    @patch("src.formulario.repository.ServicoAuth")
-    def test_localizar_id_pergunta_encontrado(self, mock_auth_class):
-        repo = RepositorioFormulario()
-        mapa = {"q1": "Nome", "q2": "Email"}
-        resultado = repo._localizar_id_pergunta(mapa, "Nome")
-        assert resultado == "q1"
-
-    @patch("src.formulario.repository.ServicoAuth")
-    def test_localizar_id_pergunta_nao_encontrado(self, mock_auth_class):
-        repo = RepositorioFormulario()
-        mapa = {"q1": "Nome"}
-        resultado = repo._localizar_id_pergunta(mapa, "Telefone")
-        assert resultado is None
-
-    @patch("src.formulario.repository.ServicoAuth")
-    def test_localizar_id_pergunta_case_insensitive(self, mock_auth_class):
-        repo = RepositorioFormulario()
-        mapa = {"q1": "Nome"}
-        resultado = repo._localizar_id_pergunta(mapa, "nome")
-        assert resultado == "q1"
+    # `_localizar_id_pergunta` saiu do repositorio: virou
+    # `leitura.localizar_id_pergunta`, que aceita uma lista de titulos em vez de
+    # um so. Coberta em test_formulario_leitura.py.
 
     @patch("src.formulario.repository.ServicoAuth")
     def test_extrair_texto_resposta_sucesso(self, mock_auth_class):
