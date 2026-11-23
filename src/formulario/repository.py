@@ -11,6 +11,12 @@ from src.formulario.schema import (
     RespostaInscricaoParticipante,
 )
 from src.auth.service import ServicoAuth
+from src.formulario.leitura import (
+    TITULOS_EMAIL,
+    TITULOS_NOME,
+    extrair_formulario_id,
+    localizar_id_pergunta,
+)
 from src.participante.models import Inscricao, Participante
 from src.pedido.model import Pedido
 from src.pedido.schema import RespostaPedido
@@ -34,17 +40,10 @@ class RepositorioFormulario:
         except Exception as erro:
             raise RuntimeError("Falha automatica ao renovar credenciais do Google para o Forms") from erro
 
-    def _extrair_formulario_id_link(self, link: str) -> str | None:
-        if "/forms/d/" not in link:
-            return None
-        parte = link.split("/forms/d/")[-1]
-        return parte.split("/")[0] if parte else None
-
     def _definir_formulario_id(self, link_formulario: str) -> str:
-        formulario_id = self._extrair_formulario_id_link(link_formulario)
-        if not formulario_id:
-            raise ValueError("Use o link completo do Forms para extrair o formulario_id")
-        return formulario_id
+        """Delega a `leitura.extrair_formulario_id`, que explica cada formato
+        errado em vez de devolver um id invalido em silencio."""
+        return extrair_formulario_id(link_formulario)
 
     def _montar_link_resposta(self, formulario_id: str, resposta_id: str) -> str:
         return (
@@ -84,12 +83,7 @@ class RepositorioFormulario:
                 mapa[pergunta_id] = item.get("title", "")
         return mapa
 
-    def _localizar_id_pergunta(self, mapa: dict[str, str], titulo: str) -> str | None:
-        titulo_normalizado = titulo.strip().lower()
-        for pergunta_id, nome in mapa.items():
-            if nome.strip().lower() == titulo_normalizado:
-                return pergunta_id
-        return None
+
 
     def _extrair_texto_resposta(self, respostas: dict, pergunta_id: str | None) -> str | None:
         if not pergunta_id:
@@ -203,8 +197,8 @@ class RepositorioFormulario:
             "db": db,
             "evento": evento,
             "formulario_id": formulario_id,
-            "id_nome": self._localizar_id_pergunta(mapa_perguntas, "Nome"),
-            "id_email": self._localizar_id_pergunta(mapa_perguntas, "Email"),
+            "id_nome": localizar_id_pergunta(mapa_perguntas, TITULOS_NOME),
+            "id_email": localizar_id_pergunta(mapa_perguntas, TITULOS_EMAIL),
             "respostas": respostas,
         }
 
