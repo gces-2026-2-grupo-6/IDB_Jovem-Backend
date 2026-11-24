@@ -290,6 +290,18 @@ class TestMateriais:
         assert material["url_download"], "material sem link de download"
         assert material["criado_em"], "material sem data de criacao"
 
+    def test_material_traz_url_preview_automatica_e_permite_sobrescrever(self, superadmin):
+        criado = superadmin.post(
+            "/material/",
+            json={"titulo": "Video YouTube", "tipo": "video", "link": "https://youtu.be/dQw4w9WgXcQ"},
+        )
+        assert criado.status_code == 201, criado.text
+        dados = criado.json()
+        try:
+            assert dados["url_preview"] == "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+        finally:
+            superadmin.delete(f"/material/{dados['material_id']}")
+
     def test_arquivo_do_drive_baixa_pela_rota_do_backend(self, superadmin):
         """O achado da Sprint 3: exibir nao e baixar.
 
@@ -438,3 +450,19 @@ class TestLinksDoPainel:
     def test_administrador_de_setor_nao_le_os_links(self, admin_sem_setor):
         """CA4 — os links sao invisiveis para quem nao e superadministradora."""
         assert admin_sem_setor.get("/painel/links").status_code == 403
+
+    def test_visitante_le_apenas_link_de_cadastro_sem_ver_planilha(
+        self, superadmin, anonimo, links_do_painel_restaurados
+    ):
+        superadmin.put(
+            "/painel/links",
+            json={
+                "link_cadastro_lideres": "https://exemplo.invalid/cadastro",
+                "link_planilha_lideres": "https://exemplo.invalid/planilha",
+            },
+        )
+        resposta = anonimo.get("/painel/link-cadastro-lideres")
+        assert resposta.status_code == 200
+        assert resposta.json() == {
+            "link_cadastro_lideres": "https://exemplo.invalid/cadastro"
+        }

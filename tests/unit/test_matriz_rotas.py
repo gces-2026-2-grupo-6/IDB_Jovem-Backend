@@ -105,12 +105,15 @@ MATRIZ = {
     # pessoais de mais de 2500 pessoas, entao ate a leitura e restrita.
     ("GET", "/painel/links"): SUPERADMIN,
     ("PUT", "/painel/links"): SUPERADMIN,
+    # Leitura aberta apenas do formulario de cadastro (sem expor a planilha).
+    ("GET", "/painel/link-cadastro-lideres"): PUBLICA,
     # Midia e mapa
     ("GET", "/galeria/fotos"): ADMIN_OU_SUPERADMIN,
     ("GET", "/drive/imagem/{file_id}"): PUBLICA,
     # US11: download aberto, sem login. A rota so entrega imagem ou arquivo
     # cadastrado como material (ver baixar_arquivo).
     ("GET", "/drive/download/{file_id}"): PUBLICA,
+    ("GET", "/drive/miniatura/{file_id}"): PUBLICA,
     # US11: materiais para download. Leitura publica; "so o superadmin envia".
     ("GET", "/material/"): PUBLICA,
     ("GET", "/material/{material_id}"): PUBLICA,
