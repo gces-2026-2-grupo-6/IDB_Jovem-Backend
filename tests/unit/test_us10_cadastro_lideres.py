@@ -274,6 +274,17 @@ class TestServicoDosLinks:
         links = servico_painel.atualizar_links(SolicitacaoLinksPainel(link_planilha_lideres=None))
         assert links.link_planilha_lideres is None
 
+    def test_obter_link_cadastro_retorna_apenas_link_de_cadastro(self, servico_painel):
+        servico_painel.atualizar_links(
+            SolicitacaoLinksPainel(
+                link_cadastro_lideres=CADASTRO, link_planilha_lideres=PLANILHA
+            )
+        )
+
+        resposta = servico_painel.obter_link_cadastro()
+
+        assert resposta.model_dump() == {"link_cadastro_lideres": CADASTRO}
+
 
 def _client_painel(servico, usuario):
     app = FastAPI()
@@ -318,6 +329,22 @@ class TestRotasDosLinks:
         resposta = getattr(cliente, metodo)("/painel/links", **({"json": {}} if metodo == "put" else {}))
 
         assert resposta.status_code == 403
+
+    def test_visitante_sem_login_le_link_de_cadastro_sem_ver_planilha(self, servico_painel):
+        servico_painel.atualizar_links(
+            SolicitacaoLinksPainel(
+                link_cadastro_lideres=CADASTRO, link_planilha_lideres=PLANILHA
+            )
+        )
+        app = FastAPI()
+        app.include_router(painel_router)
+        app.dependency_overrides[get_servico_painel] = lambda: servico_painel
+
+        resposta = TestClient(app).get("/painel/link-cadastro-lideres")
+
+        assert resposta.status_code == 200
+        assert resposta.json() == {"link_cadastro_lideres": CADASTRO}
+        assert "link_planilha_lideres" not in resposta.json()
 
 
 def test_injecao_do_servico_de_links_usa_o_banco_da_requisicao():

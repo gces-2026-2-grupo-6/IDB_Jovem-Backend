@@ -438,3 +438,19 @@ class TestLinksDoPainel:
     def test_administrador_de_setor_nao_le_os_links(self, admin_sem_setor):
         """CA4 — os links sao invisiveis para quem nao e superadministradora."""
         assert admin_sem_setor.get("/painel/links").status_code == 403
+
+    def test_visitante_le_apenas_link_de_cadastro_sem_ver_planilha(
+        self, superadmin, anonimo, links_do_painel_restaurados
+    ):
+        superadmin.put(
+            "/painel/links",
+            json={
+                "link_cadastro_lideres": "https://exemplo.invalid/cadastro",
+                "link_planilha_lideres": "https://exemplo.invalid/planilha",
+            },
+        )
+        resposta = anonimo.get("/painel/link-cadastro-lideres")
+        assert resposta.status_code == 200
+        assert resposta.json() == {
+            "link_cadastro_lideres": "https://exemplo.invalid/cadastro"
+        }

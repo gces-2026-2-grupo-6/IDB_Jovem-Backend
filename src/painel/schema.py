@@ -10,6 +10,14 @@ class RespostaLinksPainel(BaseModel):
     link_planilha_lideres: str | None = None
 
 
+class RespostaLinkCadastroLideres(BaseModel):
+    """
+    Link público de cadastro de líderes (US10).
+    Expõe apenas o endereço do formulário, sem revelar o link da planilha.
+    """
+    link_cadastro_lideres: str | None = None
+
+
 class SolicitacaoLinksPainel(BaseModel):
     """
     Atualização parcial: só os campos enviados mudam. Enviar "" ou null
