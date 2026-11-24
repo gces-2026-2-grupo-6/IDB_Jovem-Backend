@@ -466,3 +466,124 @@ class TestServicoDriveDownload:
             servico_drive.transmitir_arquivo(
                 ID_DRIVE, {"nome": "a.mp4", "content_type": "video/mp4"}
             )
+
+class TestPreviaVisualMateriais:
+    @pytest.mark.parametrize(
+        "url,esperado",
+        [
+            ("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+            ("https://youtu.be/dQw4w9WgXcQ?si=abc", "dQw4w9WgXcQ"),
+            ("https://youtube.com/shorts/abcDEF12345", "abcDEF12345"),
+            ("https://youtube.com/embed/abcDEF12345", "abcDEF12345"),
+            ("https://youtube.com/live/abcDEF12345", "abcDEF12345"),
+            ("https://youtube.com/", None),
+            ("https://exemplo.org/watch?v=dQw4w9WgXcQ", None),
+            ("", None),
+            (None, None),
+        ],
+    )
+    def test_extrair_id_youtube(self, url, esperado):
+        from src.drive.utils import extrair_id_youtube
+        assert extrair_id_youtube(url) == esperado
+
+    def test_preview_automatica_por_tipo(self):
+        from src.drive.utils import link_de_preview
+        assert link_de_preview(LINK_DRIVE, "foto") == f"{BASE}/drive/imagem/{ID_DRIVE}"
+        assert link_de_preview(LINK_DRIVE, "documento") == f"{BASE}/drive/miniatura/{ID_DRIVE}"
+        assert link_de_preview(LINK_DRIVE, "video") == f"{BASE}/drive/miniatura/{ID_DRIVE}"
+        assert link_de_preview("https://youtu.be/dQw4w9WgXcQ", "video") == "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+        assert link_de_preview("https://cdn.exemplo.org/banner.png", "foto") == "https://cdn.exemplo.org/banner.png"
+        assert link_de_preview("https://exemplo.org/pagina", "documento") is None
+
+    def test_capa_manual_sobrescreve_preview_automatica(self):
+        from src.drive.utils import link_de_preview
+        capa_drive = "https://drive.google.com/file/d/CapaManual12345/view"
+        assert link_de_preview(LINK_DRIVE, "documento", capa_drive) == f"{BASE}/drive/imagem/CapaManual12345"
+        assert link_de_preview(LINK_DRIVE, "documento", "https://cdn.exemplo.org/capa.jpg") == "https://cdn.exemplo.org/capa.jpg"
+
+    def test_validacao_link_preview_opcional(self):
+        assert material(link_preview="   ").link_preview is None
+        assert material(link_preview=None).link_preview is None
+        assert material(link_preview="  https://exemplo.org/capa.jpg  ").link_preview == "https://exemplo.org/capa.jpg"
+        with pytest.raises(ValidationError):
+            material(link_preview="sem-protocolo.jpg")
+        with pytest.raises(ValidationError):
+            material(link_preview=123)
+
+    def test_resposta_material_preenche_url_preview(self, servico):
+        doc = servico.criar_material(material(tipo=TipoMaterial.DOCUMENTO))
+        assert RespostaMaterial.model_validate(doc).url_preview == f"{BASE}/drive/miniatura/{ID_DRIVE}"
+        capa = "https://cdn.exemplo.org/capa.png"
+        doc_capa = servico.criar_material(material(tipo=TipoMaterial.DOCUMENTO, link_preview=capa))
+        resp_capa = RespostaMaterial.model_validate(doc_capa)
+        assert resp_capa.link_preview == capa
+        assert resp_capa.url_preview == capa
+
+    def test_migracao_adiciona_e_remove_link_preview(self):
+        from tests.unit.migracoes_teste import colunas_adicionadas, colunas_removidas, operacoes
+        assert "link_preview" in colunas_adicionadas(operacoes("f4c9a2e7b1d8", "upgrade"), "material")
+        assert "link_preview" in colunas_removidas(operacoes("f4c9a2e7b1d8", "downgrade"), "material")
+
+class TestRotaMiniaturaDrive:
+    def test_miniatura_de_material_cadastrado_retorna_imagem(self, banco, servico):
+        servico.criar_material(material(tipo=TipoMaterial.DOCUMENTO))
+        drive = MagicMock()
+        drive.obter_miniatura_com_cache.return_value = ("image/jpeg", b"thumb-bytes")
+        with patch("src.drive.controller.ServicoDrive", return_value=drive):
+            resposta = _client_download(banco).get(f"/drive/miniatura/{ID_DRIVE}")
+        assert resposta.status_code == 200
+        assert resposta.content == b"thumb-bytes"
+
+    def test_miniatura_de_arquivo_nao_cadastrado_responde_404(self, banco):
+        assert _client_download(banco).get(f"/drive/miniatura/{ID_DRIVE}").status_code == 404
+
+    @pytest.mark.parametrize("erro,status_esperado", [(ValueError("x"), 404), (RuntimeError("x"), 502)])
+    def test_miniatura_mapeia_erros_do_drive(self, banco, servico, erro, status_esperado):
+        servico.criar_material(material(tipo=TipoMaterial.DOCUMENTO))
+        drive = MagicMock()
+        drive.obter_miniatura_com_cache.side_effect = erro
+        with patch("src.drive.controller.ServicoDrive", return_value=drive):
+            assert _client_download(banco).get(f"/drive/miniatura/{ID_DRIVE}").status_code == status_esperado
+
+class TestServicoDriveMiniatura:
+    @patch("src.drive.service.urlopen")
+    def test_baixa_thumbnail_link_em_alta_resolucao(self, mock_urlopen, servico_drive):
+        meta_resp = _resposta_http(json.dumps({"id": ID_DRIVE, "mimeType": "application/pdf", "thumbnailLink": "https://lh3.googleusercontent.com/thumb=s220"}).encode())
+        thumb_resp = _resposta_http(b"jpg-bytes")
+        thumb_resp.headers = {"Content-Type": "image/jpeg"}
+        mock_urlopen.side_effect = [meta_resp, thumb_resp]
+        assert servico_drive.baixar_miniatura(ID_DRIVE) == ("image/jpeg", b"jpg-bytes")
+
+    @patch("src.drive.service.urlopen")
+    def test_imagem_sem_thumbnail_usa_baixar_imagem(self, mock_urlopen, servico_drive):
+        mock_urlopen.return_value = _resposta_http(json.dumps({"id": ID_DRIVE, "mimeType": "image/png"}).encode())
+        servico_drive.baixar_imagem = MagicMock(return_value=("image/png", iter([b"img"])))
+        assert servico_drive.baixar_miniatura(ID_DRIVE) == ("image/png", b"img")
+
+    @patch("src.drive.service.urlopen")
+    def test_documento_sem_thumbnail_lanca_value_error(self, mock_urlopen, servico_drive):
+        mock_urlopen.return_value = _resposta_http(json.dumps({"id": ID_DRIVE, "mimeType": "application/pdf"}).encode())
+        with pytest.raises(ValueError, match="Miniatura não disponível"):
+            servico_drive.baixar_miniatura(ID_DRIVE)
+
+    @pytest.mark.parametrize("erro,esperado", [(HTTPError("u", 404, "nf", {}, None), ValueError), (HTTPError("u", 500, "err", {}, None), RuntimeError), (URLError("sem rede"), RuntimeError)])
+    @patch("src.drive.service.urlopen")
+    def test_erros_ao_consultar_metadados_da_miniatura(self, mock_urlopen, servico_drive, erro, esperado):
+        mock_urlopen.side_effect = erro
+        with pytest.raises(esperado):
+            servico_drive.baixar_miniatura(ID_DRIVE)
+
+    @pytest.mark.parametrize("erro,esperado", [(HTTPError("u", 404, "nf", {}, None), ValueError), (HTTPError("u", 500, "err", {}, None), RuntimeError), (URLError("sem rede"), RuntimeError)])
+    @patch("src.drive.service.urlopen")
+    def test_erros_ao_baixar_bytes_da_miniatura(self, mock_urlopen, servico_drive, erro, esperado):
+        meta_resp = _resposta_http(json.dumps({"id": ID_DRIVE, "mimeType": "application/pdf", "thumbnailLink": "https://lh3.googleusercontent.com/thumb=s220"}).encode())
+        mock_urlopen.side_effect = [meta_resp, erro]
+        with pytest.raises(esperado):
+            servico_drive.baixar_miniatura(ID_DRIVE)
+
+    def test_obter_miniatura_com_cache_usa_prefixo_thumb(self, servico_drive):
+        db_mock = MagicMock()
+        db_mock.get.return_value = None
+        servico_drive.baixar_miniatura = MagicMock(return_value=("image/png", b"ok"))
+        assert servico_drive.obter_miniatura_com_cache(db_mock, ID_DRIVE) == ("image/png", b"ok")
+        assert db_mock.get.call_args.args[1] == f"thumb:{ID_DRIVE}"

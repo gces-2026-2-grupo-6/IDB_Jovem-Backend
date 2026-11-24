@@ -327,28 +327,13 @@ class ServicoDrive:
 
         return nome, content_type, gerar_blocos()
 
-    def obter_imagem_com_cache(
-        self,
-        banco: Session,
-        file_id: str,
-    ) -> tuple[str, bytes]:
-        """
-        Devolve (content_type, bytes) de uma imagem do Drive servindo do cache
-        no banco quando disponivel. No primeiro acesso baixa do Drive, grava o
-        conteudo em base64 na tabela imagem_cache e passa a servir do banco nas
-        proximas requisicoes.
-
-        Lanca ValueError (404) e RuntimeError (502) iguais a baixar_imagem.
-        """
-        cache = banco.get(ImagemCache, file_id)
+    def _buscar_ou_gravar_cache(self, banco: Session, chave_cache: str, carregar) -> tuple[str, bytes]:
+        cache = banco.get(ImagemCache, chave_cache)
         if cache is not None:
             return cache.content_type, base64.b64decode(cache.conteudo_base64)
-
-        content_type, gerador = self.baixar_imagem(file_id)
-        conteudo = b"".join(gerador)
-
+        content_type, conteudo = carregar()
         registro = ImagemCache(
-            file_id=file_id,
+            file_id=chave_cache,
             content_type=content_type,
             conteudo_base64=base64.b64encode(conteudo).decode("ascii"),
         )
@@ -356,8 +341,54 @@ class ServicoDrive:
         try:
             banco.commit()
         except IntegrityError:
-            # Outra requisicao gravou o mesmo file_id em paralelo: ignoramos
-            # o conflito e seguimos com os bytes ja baixados.
             banco.rollback()
-
         return content_type, conteudo
+
+    def obter_imagem_com_cache(self, banco: Session, file_id: str) -> tuple[str, bytes]:
+        def _baixar():
+            content_type, gerador = self.baixar_imagem(file_id)
+            return content_type, b"".join(gerador)
+        return self._buscar_ou_gravar_cache(banco, file_id, _baixar)
+
+    def _ler_metadados_miniatura(self, file_id: str, token: str) -> dict:
+        url_meta = (
+            f"https://www.googleapis.com/drive/v3/files/{file_id}?"
+            f"{urlencode({'fields': 'id,mimeType,thumbnailLink'})}"
+        )
+        req_meta = Request(url_meta)
+        req_meta.add_header("Authorization", f"Bearer {token}")
+        req_meta.add_header("Accept", "application/json")
+        try:
+            with urlopen(req_meta, timeout=10) as resposta:
+                return json.loads(resposta.read().decode("utf-8"))
+        except HTTPError as erro:
+            if erro.code == 404:
+                raise ValueError("Arquivo não encontrado no Google Drive") from erro
+            raise RuntimeError("Falha ao consultar miniatura no Google Drive") from erro
+        except URLError as erro:
+            raise RuntimeError("Falha ao consultar miniatura no Google Drive") from erro
+
+    def baixar_miniatura(self, file_id: str) -> tuple[str, bytes]:
+        token = self._obter_token_valido()
+        dados = self._ler_metadados_miniatura(file_id, token)
+        thumb_url = dados.get("thumbnailLink")
+        mime_type = dados.get("mimeType") or ""
+        if not thumb_url:
+            if mime_type.startswith("image/"):
+                content_type, gerador = self.baixar_imagem(file_id)
+                return content_type, b"".join(gerador)
+            raise ValueError("Miniatura não disponível para este arquivo.")
+        req_thumb = Request(thumb_url.replace("=s220", "=s800"))
+        req_thumb.add_header("Authorization", f"Bearer {token}")
+        try:
+            with urlopen(req_thumb, timeout=15) as resposta:
+                return resposta.headers.get("Content-Type", "image/jpeg"), resposta.read()
+        except HTTPError as erro:
+            if erro.code == 404:
+                raise ValueError("Miniatura não encontrada no Google Drive") from erro
+            raise RuntimeError("Falha ao baixar miniatura do Google Drive") from erro
+        except URLError as erro:
+            raise RuntimeError("Falha ao baixar miniatura do Google Drive") from erro
+
+    def obter_miniatura_com_cache(self, banco: Session, file_id: str) -> tuple[str, bytes]:
+        return self._buscar_ou_gravar_cache(banco, f"thumb:{file_id}", lambda: self.baixar_miniatura(file_id))

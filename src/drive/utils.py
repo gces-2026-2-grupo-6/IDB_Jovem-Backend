@@ -95,3 +95,42 @@ def link_de_download(link: str | None) -> str | None:
     if not file_id:
         return link
     return montar_url_download(file_id)
+
+_HOSTS_YOUTUBE = ("youtube.com", "youtu.be")
+_REGEX_YOUTUBE_ID = re.compile(r"^[a-zA-Z0-9_-]{6,20}$")
+
+def extrair_id_youtube(link: str | None) -> str | None:
+    if not link:
+        return None
+    parsed = urlparse(link.strip())
+    host = parsed.netloc.lower()
+    if not any(host == d or host.endswith("." + d) for d in _HOSTS_YOUTUBE):
+        return None
+    if host == "youtu.be" or host.endswith(".youtu.be"):
+        candidato = parsed.path.lstrip("/").split("/", 1)[0]
+    else:
+        candidato = parse_qs(parsed.query).get("v", [""])[0]
+        if not candidato:
+            partes = [p for p in parsed.path.split("/") if p]
+            if len(partes) >= 2 and partes[0] in ("shorts", "embed", "live"):
+                candidato = partes[1]
+    return candidato if _REGEX_YOUTUBE_ID.fullmatch(candidato or "") else None
+
+def montar_url_miniatura(file_id: str) -> str:
+    base = configuracoes.BASE_URL.rstrip("/")
+    return f"{base}/drive/miniatura/{file_id}"
+
+def link_de_preview(link: str | None, tipo: str | None = None, link_preview: str | None = None) -> str | None:
+    if link_preview and link_preview.strip():
+        return converter_link_para_proxy(link_preview.strip())
+    file_id = extrair_file_id_do_google(link)
+    if file_id:
+        if tipo == "foto":
+            return montar_url_proxy(file_id)
+        return montar_url_miniatura(file_id)
+    video_id = extrair_id_youtube(link)
+    if video_id:
+        return f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+    if tipo == "foto" and link and link.strip():
+        return link.strip()
+    return None

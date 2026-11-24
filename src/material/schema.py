@@ -1,23 +1,19 @@
 from datetime import datetime
 from enum import Enum
-
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
-
-from src.drive.utils import link_de_download
-
+from src.drive.utils import link_de_download, link_de_preview
 
 class TipoMaterial(str, Enum):
     FOTO = "foto"
     VIDEO = "video"
     DOCUMENTO = "documento"
 
-
 class SolicitacaoMaterial(BaseModel):
     titulo: str
     descricao: str | None = None
     tipo: TipoMaterial
-    # Link do arquivo no Drive (ou link externo, como um vídeo no YouTube).
     link: str
+    link_preview: str | None = None
 
     @field_validator("titulo")
     @classmethod
@@ -42,6 +38,17 @@ class SolicitacaoMaterial(BaseModel):
             raise ValueError("O link deve começar com https:// ou http://.")
         return valor
 
+    @field_validator("link_preview", mode="before")
+    @classmethod
+    def _link_preview_opcional(cls, valor):
+        if valor is None:
+            return None
+        if not isinstance(valor, str):
+            return valor
+        valor = valor.strip()
+        if not valor:
+            return None
+        return cls._link_http(valor)
 
 class RespostaMaterial(BaseModel):
     material_id: int
@@ -49,15 +56,17 @@ class RespostaMaterial(BaseModel):
     descricao: str | None = None
     tipo: TipoMaterial
     link: str
-    # Link do botão "Baixar": arquivo do Drive passa pela rota de download do
-    # backend; link externo vem como está.
+    link_preview: str | None = None
     url_download: str = ""
+    url_preview: str | None = None
     criado_em: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode="after")
-    def _preencher_download(self):
+    def _preencher_links(self):
         if not self.url_download:
             self.url_download = link_de_download(self.link)
+        if not self.url_preview:
+            self.url_preview = link_de_preview(self.link, self.tipo.value, self.link_preview)
         return self

@@ -42,6 +42,26 @@ def proxy_imagem(file_id: str, banco: Session = Depends(obter_banco)):
     )
 
 @router_imagem.get(
+    "/miniatura/{file_id}",
+    responses={
+        200: {"content": {"image/*": {}}, "description": "Miniatura do material."},
+        404: {"description": "Arquivo não cadastrado ou sem miniatura disponível."},
+        502: {"description": "Falha ao falar com o Google Drive."},
+    },
+)
+def proxy_miniatura(file_id: str, banco: Session = Depends(obter_banco)):
+    if not ServicoMaterial(RepositorioMaterial(banco)).arquivo_cadastrado(file_id):
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
+    servico = ServicoDrive()
+    try:
+        content_type, conteudo = servico.obter_miniatura_com_cache(banco, file_id)
+    except ValueError as erro:
+        raise HTTPException(status_code=404, detail=str(erro)) from erro
+    except RuntimeError as erro:
+        raise HTTPException(status_code=502, detail=str(erro)) from erro
+    return Response(content=conteudo, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
+
+@router_imagem.get(
     "/download/{file_id}",
     response_class=StreamingResponse,
     responses={

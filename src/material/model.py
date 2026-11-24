@@ -22,6 +22,7 @@ class Material(Base):
     descricao   = Column(Text, nullable=True)
     tipo        = Column(Text, nullable=False)
     link        = Column(Text, nullable=False)
+    link_preview = Column(Text, nullable=True)
     criado_em   = Column(
         DateTime(timezone=True),
         nullable=False,

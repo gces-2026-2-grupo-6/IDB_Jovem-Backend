@@ -290,6 +290,18 @@ class TestMateriais:
         assert material["url_download"], "material sem link de download"
         assert material["criado_em"], "material sem data de criacao"
 
+    def test_material_traz_url_preview_automatica_e_permite_sobrescrever(self, superadmin):
+        criado = superadmin.post(
+            "/material/",
+            json={"titulo": "Video YouTube", "tipo": "video", "link": "https://youtu.be/dQw4w9WgXcQ"},
+        )
+        assert criado.status_code == 201, criado.text
+        dados = criado.json()
+        try:
+            assert dados["url_preview"] == "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+        finally:
+            superadmin.delete(f"/material/{dados['material_id']}")
+
     def test_arquivo_do_drive_baixa_pela_rota_do_backend(self, superadmin):
         """O achado da Sprint 3: exibir nao e baixar.
 
